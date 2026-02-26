@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TransKey 工具箱</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0f;
+    --surface: #141418;
+    --surface2: #1c1c22;
+    --border: #2a2a35;
+    --accent: #00e5a0;
+    --accent2: #7c6af7;
+    --text: #e8e8f0;
+    --text-muted: #666680;
+    --danger: #ff4d6d;
+    --success: #00e5a0;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Noto Sans SC', sans-serif;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 48px 24px;
+  }
+
+  header {
+    margin-bottom: 48px;
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: rgba(0,229,160,0.08);
+    border: 1px solid rgba(0,229,160,0.2);
+    padding: 4px 10px;
+    border-radius: 4px;
+  }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  h1 span {
+    color: var(--accent);
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  /* Tab navigation */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 32px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px;
+  }
+
+  .tab {
+    flex: 1;
+    padding: 10px 20px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    border-radius: 7px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .tab:hover { color: var(--text); background: var(--surface2); }
+
+  .tab.active {
+    background: var(--surface2);
+    color: var(--accent);
+    border: 1px solid rgba(0,229,160,0.2);
+  }
+
+  .tab-num {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    background: rgba(0,229,160,0.1);
+    border: 1px solid rgba(0,229,160,0.3);
+  }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  .card-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title::before {
+    content: '';
+    width: 3px; height: 12px;
+    background: var(--accent);
+    border-radius: 2px;
+    display: inline-block;
+  }
+
+  /* Drop zones */
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .dropzone:hover, .dropzone.drag-over {
+    border-color: var(--accent);
+    background: rgba(0,229,160,0.04);
+  }
+
+  .dropzone input[type=file] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .dropzone-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  .dropzone-text {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .dropzone-text strong {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .dropzone-hint {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    opacity: 0.6;
+  }
+
+  /* File list */
+  .file-list {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    animation: slideIn 0.2s ease;
+  }
+
+  .file-item .file-icon { color: var(--accent); }
+  .file-item .file-name { flex: 1; color: var(--text); }
+  .file-item .file-count {
+    background: rgba(0,229,160,0.1);
+    color: var(--accent);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+  }
+  .file-item .file-remove {
+    color: var(--danger);
+    cursor: pointer;
+    opacity: 0.6;
+    font-size: 14px;
+    border: none;
+    background: none;
+    padding: 2px;
+    line-height: 1;
+  }
+  .file-item .file-remove:hover { opacity: 1; }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Stats bar */
+  .stats-bar {
+    display: flex;
+    gap: 16px;
+    padding: 14px 18px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-top: 16px;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .stat-val {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+  }
+
+  .stat-divider {
+    width: 1px;
+    background: var(--border);
+    align-self: stretch;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 24px;
+    border: none;
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+  .btn-primary:hover { background: #00ffb3; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-accent2 {
+    background: var(--accent2);
+    color: #fff;
+  }
+  .btn-accent2:hover { background: #9485ff; transform: translateY(-1px); }
+  .btn-accent2:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+  .actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+
+  /* Alert / message */
+  .msg {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-top: 16px;
+    display: none;
+    align-items: flex-start;
+    gap: 10px;
+    font-family: var(--mono);
+  }
+
+  .msg.show { display: flex; animation: slideIn 0.2s ease; }
+  .msg.success { background: rgba(0,229,160,0.08); border: 1px solid rgba(0,229,160,0.25); color: var(--accent); }
+  .msg.error { background: rgba(255,77,109,0.08); border: 1px solid rgba(255,77,109,0.25); color: var(--danger); }
+  .msg.info { background: rgba(124,106,247,0.08); border: 1px solid rgba(124,106,247,0.25); color: var(--accent2); }
+
+  /* Key preview */
+  .key-preview {
+    margin-top: 14px;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .key-preview::-webkit-scrollbar { width: 4px; }
+  .key-preview::-webkit-scrollbar-track { background: transparent; }
+  .key-preview::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .key-tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin: 2px;
+  }
+
+  /* Step indicator */
+  .step-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 28px;
+  }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+  }
+
+  .step.done { color: var(--accent); }
+  .step.active { color: var(--text); }
+
+  .step-dot {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .step.done .step-dot { border-color: var(--accent); color: var(--accent); background: rgba(0,229,160,0.1); }
+  .step.active .step-dot { border-color: var(--text); color: var(--text); }
+
+  .step-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+    margin: 0 8px;
+    max-width: 60px;
+  }
+
+  .step.done + .step-line { background: var(--accent); opacity: 0.3; }
+
+  /* Progress */
+  .progress-wrap {
+    background: var(--surface2);
+    border-radius: 4px;
+    height: 4px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+
+  /* single file indicator */
+  .single-file-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--surface2);
+    border: 1px solid rgba(0,229,160,0.2);
+    border-radius: 8px;
+    margin-top: 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    animation: slideIn 0.2s ease;
+  }
+
+  .single-file-badge .remove-file {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--danger);
+    cursor: pointer;
+    opacity: 0.6;
+    font-size: 16px;
+    line-height: 1;
+  }
+  .single-file-badge .remove-file:hover { opacity: 1; }
+
+  footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <div class="logo">TransKey Toolkit</div>
+      <h1>TX<span>.</span>Tools</h1>
+      <p class="subtitle">i18n 问题 Key 提取 & 翻译汇总过滤工具</p>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" onclick="switchTab(1)">
+      <span class="tab-num">1</span>JSON → 问题 Key XLSX
+    </button>
+    <button class="tab" onclick="switchTab(2)">
+      <span class="tab-num">2</span>汇总 XLSX → 过滤结果
+    </button>
+  </nav>
+
+  <!-- ===== PANEL 1 ===== -->
+  <div class="panel active" id="panel1">
+    <div class="card">
+      <div class="card-title">上传 JSON 文件（支持多个）</div>
+      <div class="dropzone" id="dz1" ondragover="onDragOver(event,'dz1')" ondragleave="onDragLeave('dz1')" ondrop="onDrop1(event)">
+        <input type="file" accept=".json" multiple onchange="onFileChange1(event)">
+        <span class="dropzone-icon">📂</span>
+        <div class="dropzone-text"><strong>点击选择</strong> 或拖拽 JSON 文件到此处</div>
+        <div class="dropzone-hint">支持多文件 · 自动去重 · 提取 transKey 字段</div>
+      </div>
+      <div class="file-list" id="fileList1"></div>
+    </div>
+
+    <div class="card" id="statsCard1" style="display:none">
+      <div class="card-title">提取结果</div>
+      <div class="stats-bar">
+        <div class="stat">
+          <div class="stat-val" id="s1-files">0</div>
+          <div class="stat-label">JSON 文件</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <div class="stat-val" id="s1-total">0</div>
+          <div class="stat-label">原始条目</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <div class="stat-val" id="s1-unique">0</div>
+          <div class="stat-label">去重后 Key</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <div class="stat-val" id="s1-status3">0</div>
+          <div class="stat-label">未翻译 (3)</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <div class="stat-val" id="s1-status4">0</div>
+          <div class="stat-label">Locale缺失 (4)</div>
+        </div>
+      </div>
+      <div class="key-preview" id="keyPreview1"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="btn1-export" onclick="exportTool1()" disabled>
+        ⬇ 导出问题 Key XLSX
+      </button>
+      <button class="btn btn-secondary" onclick="clearTool1()">✕ 清空</button>
+    </div>
+    <div class="msg" id="msg1"></div>
+  </div>
+
+  <!-- ===== PANEL 2 ===== -->
+  <div class="panel" id="panel2">
+    <div class="step-indicator">
+      <div class="step active" id="step2-1"><div class="step-dot">1</div>上传问题 Key 文件</div>
+      <div class="step-line" id="line2-1"></div>
+      <div class="step" id="step2-2"><div class="step-dot">2</div>上传汇总翻译文件</div>
+      <div class="step-line" id="line2-2"></div>
+      <div class="step" id="step2-3"><div class="step-dot">3</div>导出过滤结果</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">① 问题 Key 文件（上一步导出的 XLSX）</div>
+      <div class="dropzone" id="dz2a" ondragover="onDragOver(event,'dz2a')" ondragleave="onDragLeave('dz2a')" ondrop="onDrop2a(event)">
+        <input type="file" accept=".xlsx,.xls" onchange="onFileChange2a(event)">
+        <span class="dropzone-icon">🔑</span>
+        <div class="dropzone-text"><strong>点击选择</strong> 或拖拽问题 Key XLSX</div>
+        <div class="dropzone-hint">读取 TransKey 列</div>
+      </div>
+      <div id="badge2a" style="display:none"></div>
+      <div class="msg" id="msg2a"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">② 汇总翻译文件（含所有翻译内容的完整 XLSX）</div>
+      <div class="dropzone" id="dz2b" ondragover="onDragOver(event,'dz2b')" ondragleave="onDragLeave('dz2b')" ondrop="onDrop2b(event)">
+        <input type="file" accept=".xlsx,.xls" onchange="onFileChange2b(event)">
+        <span class="dropzone-icon">📊</span>
+        <div class="dropzone-text"><strong>点击选择</strong> 或拖拽汇总翻译 XLSX</div>
+        <div class="dropzone-hint">保留原始格式，按问题 Key 过滤</div>
+      </div>
+      <div id="badge2b" style="display:none"></div>
+      <div class="msg" id="msg2b"></div>
+    </div>
+
+    <div class="card" id="statsCard2" style="display:none">
+      <div class="card-title">匹配结果预览</div>
+      <div class="stats-bar">
+        <div class="stat">
+          <div class="stat-val" id="s2-problem">0</div>
+          <div class="stat-label">问题 Key 数</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <div class="stat-val" id="s2-total">0</div>
+          <div class="stat-label">汇总文件行数</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <div class="stat-val" id="s2-matched">0</div>
+          <div class="stat-label">成功匹配</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <div class="stat-val" id="s2-notfound">0</div>
+          <div class="stat-label">未找到</div>
+        </div>
+      </div>
+      <div class="progress-wrap"><div class="progress-bar" id="matchProgress"></div></div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-top:6px;" id="matchPct"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-accent2" id="btn2-export" onclick="exportTool2()" disabled>
+        ⬇ 导出过滤后 XLSX
+      </button>
+      <button class="btn btn-secondary" onclick="clearTool2()">✕ 清空</button>
+    </div>
+    <div class="msg" id="msg2"></div>
+  </div>
+
+  <footer>TX.TOOLS · 本地处理，数据不上传 · v1.0</footer>
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+const state = {
+  t1: { files: [], allKeys: [], rawCount: 0 },
+  t2: { problemKeys: null, problemFile: null, summaryData: null, summaryFile: null, summaryRaw: null }
+};
+
+// ─── Tab switching ────────────────────────────────────────────────────────────
+function switchTab(n) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', i===n-1));
+  document.querySelectorAll('.panel').forEach((p,i) => p.classList.toggle('active', i===n-1));
+}
+
+// ─── Drag helpers ─────────────────────────────────────────────────────────────
+function onDragOver(e, id) { e.preventDefault(); document.getElementById(id).classList.add('drag-over'); }
+function onDragLeave(id) { document.getElementById(id).classList.remove('drag-over'); }
+
+// ─── TOOL 1: JSON → XLSX ──────────────────────────────────────────────────────
+function onDrop1(e) {
+  e.preventDefault();
+  onDragLeave('dz1');
+  const files = [...e.dataTransfer.files].filter(f => f.name.endsWith('.json'));
+  processJsonFiles(files);
+}
+
+function onFileChange1(e) {
+  processJsonFiles([...e.target.files]);
+  e.target.value = '';
+}
+
+function processJsonFiles(files) {
+  if (!files.length) return;
+  let pending = files.length;
+
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        const list = data.problemList || (Array.isArray(data) ? data : []);
+        const keys = list.map(item => item.transKey).filter(Boolean);
+        state.t1.files.push({ name: file.name, count: keys.length, keys });
+        state.t1.rawCount += keys.length;
+      } catch(err) {
+        showMsg('msg1', `解析失败: ${file.name}`, 'error');
+      }
+      pending--;
+      if (pending === 0) renderTool1();
+    };
+    reader.readAsText(file);
+  });
+}
+
+function renderTool1() {
+  // Deduplicate
+  const allSet = new Set();
+  state.t1.files.forEach(f => f.keys.forEach(k => allSet.add(k)));
+  state.t1.allKeys = [...allSet];
+
+  // Count by status (we don't store status in tool1 - just count what we have)
+  // For dedup count per original status, we'd need to re-parse - skip for now, show totals
+  document.getElementById('s1-files').textContent = state.t1.files.length;
+  document.getElementById('s1-total').textContent = state.t1.rawCount;
+  document.getElementById('s1-unique').textContent = state.t1.allKeys.length;
+  document.getElementById('s1-status3').textContent = '–';
+  document.getElementById('s1-status4').textContent = '–';
+
+  // File list
+  const fl = document.getElementById('fileList1');
+  fl.innerHTML = state.t1.files.map((f,i) => `
+    <div class="file-item">
+      <span class="file-icon">📄</span>
+      <span class="file-name">${f.name}</span>
+      <span class="file-count">${f.count} keys</span>
+      <button class="file-remove" onclick="removeFile1(${i})" title="移除">✕</button>
+    </div>
+  `).join('');
+
+  // Key preview (first 60)
+  const preview = document.getElementById('keyPreview1');
+  const shown = state.t1.allKeys.slice(0, 80);
+  preview.innerHTML = shown.map(k => `<span class="key-tag">${k}</span>`).join('') +
+    (state.t1.allKeys.length > 80 ? `<span class="key-tag" style="color:var(--accent2)">…+${state.t1.allKeys.length-80} more</span>` : '');
+
+  document.getElementById('statsCard1').style.display = 'block';
+  document.getElementById('btn1-export').disabled = state.t1.allKeys.length === 0;
+}
+
+function removeFile1(idx) {
+  const removed = state.t1.files.splice(idx, 1)[0];
+  state.t1.rawCount -= removed.count;
+  renderTool1();
+}
+
+function clearTool1() {
+  state.t1 = { files: [], allKeys: [], rawCount: 0 };
+  document.getElementById('fileList1').innerHTML = '';
+  document.getElementById('statsCard1').style.display = 'none';
+  document.getElementById('btn1-export').disabled = true;
+  hideMsg('msg1');
+}
+
+function exportTool1() {
+  if (!state.t1.allKeys.length) return;
+  const ws_data = [['TransKey'], ...state.t1.allKeys.map(k => [k])];
+  const ws = XLSX.utils.aoa_to_sheet(ws_data);
+  ws['!cols'] = [{ wch: 60 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'ProblemKeys');
+  XLSX.writeFile(wb, `problem_keys_${dateStr()}.xlsx`);
+  showMsg('msg1', `✓ 已导出 ${state.t1.allKeys.length} 个问题 Key`, 'success');
+}
+
+// ─── TOOL 2: Filter XLSX ──────────────────────────────────────────────────────
+function onDrop2a(e) { e.preventDefault(); onDragLeave('dz2a'); loadProblemFile(e.dataTransfer.files[0]); }
+function onFileChange2a(e) { loadProblemFile(e.target.files[0]); e.target.value = ''; }
+function onDrop2b(e) { e.preventDefault(); onDragLeave('dz2b'); loadSummaryFile(e.dataTransfer.files[0]); }
+function onFileChange2b(e) { loadSummaryFile(e.target.files[0]); e.target.value = ''; }
+
+function loadProblemFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      const headers = data[0] || [];
+      const tkIdx = headers.findIndex(h => h === 'TransKey');
+      if (tkIdx === -1) { showMsg('msg2a', '未找到 TransKey 列，请检查文件格式', 'error'); return; }
+      const keys = data.slice(1).map(r => r[tkIdx]).filter(Boolean);
+      state.t2.problemKeys = new Set(keys);
+      state.t2.problemFile = file.name;
+      showBadge('badge2a', `🔑 ${file.name}`, keys.length + ' keys', () => { state.t2.problemKeys = null; state.t2.problemFile = null; document.getElementById('badge2a').style.display='none'; updateStep2(); tryPreviewMatch(); });
+      showMsg('msg2a', `✓ 读取 ${keys.length} 个问题 Key`, 'success');
+      updateStep2(); tryPreviewMatch();
+    } catch(err) { showMsg('msg2a', '文件读取失败: ' + err.message, 'error'); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function loadSummaryFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      state.t2.summaryRaw = e.target.result;
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      state.t2.summaryData = data;
+      state.t2.summaryFile = file.name;
+      showBadge('badge2b', `📊 ${file.name}`, (data.length-1) + ' rows', () => { state.t2.summaryData = null; state.t2.summaryFile = null; state.t2.summaryRaw = null; document.getElementById('badge2b').style.display='none'; updateStep2(); tryPreviewMatch(); });
+      showMsg('msg2b', `✓ 读取 ${data.length-1} 行数据`, 'success');
+      updateStep2(); tryPreviewMatch();
+    } catch(err) { showMsg('msg2b', '文件读取失败: ' + err.message, 'error'); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function tryPreviewMatch() {
+  if (!state.t2.problemKeys || !state.t2.summaryData) {
+    document.getElementById('statsCard2').style.display = 'none';
+    document.getElementById('btn2-export').disabled = true;
+    return;
+  }
+  const data = state.t2.summaryData;
+  const headers = data[0] || [];
+  const tkIdx = headers.findIndex(h => h === 'TransKey');
+  if (tkIdx === -1) { showMsg('msg2', '汇总文件中未找到 TransKey 列', 'error'); return; }
+
+  const problemKeys = state.t2.problemKeys;
+  let matched = 0, notFound = 0;
+  data.slice(1).forEach(row => {
+    if (row[tkIdx] && problemKeys.has(row[tkIdx])) matched++;
+  });
+  notFound = problemKeys.size - matched;
+
+  document.getElementById('s2-problem').textContent = problemKeys.size;
+  document.getElementById('s2-total').textContent = data.length - 1;
+  document.getElementById('s2-matched').textContent = matched;
+  document.getElementById('s2-notfound').textContent = notFound;
+
+  const pct = problemKeys.size > 0 ? Math.round(matched / problemKeys.size * 100) : 0;
+  document.getElementById('matchProgress').style.width = pct + '%';
+  document.getElementById('matchPct').textContent = `匹配率 ${pct}%  (${matched} / ${problemKeys.size})`;
+
+  document.getElementById('statsCard2').style.display = 'block';
+  document.getElementById('btn2-export').disabled = matched === 0;
+}
+
+function exportTool2() {
+  if (!state.t2.problemKeys || !state.t2.summaryData) return;
+
+  const data = state.t2.summaryData;
+  const headers = data[0] || [];
+  const tkIdx = headers.findIndex(h => h === 'TransKey');
+  const problemKeys = state.t2.problemKeys;
+
+  // Filter rows
+  const filtered = [headers, ...data.slice(1).filter(row => row[tkIdx] && problemKeys.has(row[tkIdx]))];
+
+  const ws = XLSX.utils.aoa_to_sheet(filtered);
+
+  // Auto column widths
+  const colWidths = headers.map((h, ci) => {
+    let max = String(h || '').length;
+    filtered.slice(1).forEach(row => {
+      const len = String(row[ci] || '').length;
+      if (len > max) max = len;
+    });
+    return { wch: Math.min(Math.max(max + 2, 10), 60) };
+  });
+  ws['!cols'] = colWidths;
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'FilteredKeys');
+  XLSX.writeFile(wb, `filtered_translation_${dateStr()}.xlsx`);
+  showMsg('msg2', `✓ 已导出 ${filtered.length - 1} 行匹配记录`, 'success');
+}
+
+function clearTool2() {
+  state.t2 = { problemKeys: null, problemFile: null, summaryData: null, summaryFile: null, summaryRaw: null };
+  ['badge2a','badge2b'].forEach(id => document.getElementById(id).style.display = 'none');
+  document.getElementById('statsCard2').style.display = 'none';
+  document.getElementById('btn2-export').disabled = true;
+  ['msg2a','msg2b','msg2'].forEach(hideMsg);
+  updateStep2();
+}
+
+function updateStep2() {
+  const has1 = !!state.t2.problemKeys;
+  const has2 = !!state.t2.summaryData;
+  setStep('step2-1', has1 ? 'done' : 'active');
+  setStep('step2-2', has1 ? (has2 ? 'done' : 'active') : '');
+  setStep('step2-3', has1 && has2 ? 'active' : '');
+  document.getElementById('line2-1').style.background = has1 ? 'rgba(0,229,160,0.4)' : 'var(--border)';
+  document.getElementById('line2-2').style.background = has2 ? 'rgba(0,229,160,0.4)' : 'var(--border)';
+}
+
+function setStep(id, cls) {
+  const el = document.getElementById(id);
+  el.classList.remove('done','active');
+  if (cls) el.classList.add(cls);
+  if (cls === 'done') el.querySelector('.step-dot').textContent = '✓';
+  else el.querySelector('.step-dot').textContent = id.slice(-1);
+}
+
+// ─── UI helpers ───────────────────────────────────────────────────────────────
+function showBadge(id, name, info, onRemove) {
+  const el = document.getElementById(id);
+  el.innerHTML = `
+    <div class="single-file-badge">
+      <span>${name}</span>
+      <span style="color:var(--accent);margin-left:auto;margin-right:8px;font-size:11px;">${info}</span>
+      <button class="remove-file" onclick="(${onRemove.toString()})()">✕</button>
+    </div>`;
+  el.style.display = 'block';
+}
+
+function showMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.className = 'msg show ' + type;
+  el.textContent = text;
+}
+
+function hideMsg(id) {
+  const el = document.getElementById(id);
+  el.className = 'msg';
+}
+
+function dateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
+}
+
+function pad(n) { return String(n).padStart(2, '0'); }
+
+// init
+updateStep2();
+</script>
+</body>
+</html>
