@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>契约 Mock 响应生成器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            border: 1px solid #e1e8ed;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #6c7a89 0%, #8b95a5 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .header p {
+            opacity: 0.95;
+            font-size: 14px;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 30px;
+            background: #fafbfc;
+        }
+
+        .panel {
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e1e8ed;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f3f6;
+        }
+
+        .panel-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .control-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-group label {
+            font-size: 14px;
+            color: #495057;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        input[type="number"],
+        input[type="text"] {
+            padding: 6px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="number"]:focus,
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #6c7a89;
+        }
+
+        input[type="number"] {
+            width: 60px;
+        }
+
+        input[type="text"] {
+            width: 250px;
+        }
+
+        input[type="text"]:disabled {
+            background: #e9ecef;
+            color: #6c757d;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+
+        .radio-option input[type="radio"] {
+            cursor: pointer;
+            accent-color: #6c7a89;
+        }
+
+        .radio-option label {
+            cursor: pointer;
+            font-size: 14px;
+            color: #495057;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6c7a89 0%, #8b95a5 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(108, 122, 137, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #495057;
+            border: 1px solid #ced4da;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+
+        textarea {
+            width: 100%;
+            height: 450px;
+            padding: 15px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            resize: vertical;
+            transition: border-color 0.3s;
+            background: #ffffff;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #6c7a89;
+        }
+
+        .error {
+            background: #fff5f5;
+            border: 1px solid #feb2b2;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .success {
+            background: #f0fff4;
+            border: 1px solid #9ae6b4;
+            color: #22543d;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .info {
+            background: #e7f3ff;
+            border: 1px solid #90cdf4;
+            color: #2c5282;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            background: #6c7a89;
+            color: white;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .hint {
+            background: #fff8e1;
+            border-left: 4px solid #ffc107;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #856404;
+        }
+
+        @media (max-width: 968px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+            
+            .control-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            input[type="text"] {
+                width: 100%;
+            }
+        }
+
+        textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        textarea::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        textarea::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        textarea::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 契约 Mock 响应生成器</h1>
+            <p>支持多 JSON 对象输入 | 自动识别 Request/Response | ResponseStatus 自动修正 | 自定义错误信息</p>
+        </div>
+
+        <div class="content">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">📥 输入契约 JSON</h2>
+                </div>
+                
+                <div class="hint">
+                    💡 <strong>支持多种格式：</strong><br>
+                    1. 单个 Response JSON<br>
+                    2. 完整契约（Request + Response 在同一个 JSON）<br>
+                    3. <strong>两个独立的 JSON（Request 和 Response 分开）</strong>
+                </div>
+
+                <div class="controls">
+                    <div class="control-row">
+                        <div class="control-group">
+                            <label for="arrayCount">数组生成数量:</label>
+                            <input type="number" id="arrayCount" value="3" min="1" max="20">
+                        </div>
+
+                        <div class="control-group">
+                            <input type="checkbox" id="autoExtract" checked>
+                            <label for="autoExtract">自动提取响应契约</label>
+                        </div>
+                    </div>
+
+                    <div class="control-row">
+                        <div class="control-group">
+                            <label>Ack 返回值:</label>
+                            <div class="radio-group">
+                                <div class="radio-option">
+                                    <input type="radio" id="ackRandom" name="ackMode" value="random" checked>
+                                    <label for="ackRandom">随机</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" id="ackSuccess" name="ackMode" value="Suc">
+                                    <label for="ackSuccess">✅ Success</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" id="ackWarning" name="ackMode" value="Warning">
+                                    <label for="ackWarning">⚠️ Warning</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" id="ackFailure" name="ackMode" value="Failure">
+                                    <label for="ackFailure">❌ Failure</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-row">
+                        <div class="control-group">
+                            <label for="errorMessage">错误/警告信息:</label>
+                            <input type="text" id="errorMessage" value="Operation failed" placeholder="自定义错误信息">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-primary" onclick="generateMock()">✨ 生成 Mock 数据</button>
+                    <button class="btn-secondary" onclick="clearInput()">🗑️ 清空</button>
+                </div>
+
+                <textarea id="input" placeholder='支持以下格式：
+
+格式 1 - 单个 Response：
+{ "GetUserResponse": {...} }
+
+格式 2 - 完整契约：
+{ "GetUserRequest": {...}, "GetUserResponse": {...} }
+
+格式 3 - 两个独立 JSON（你的场景）：
+{ "CheckPermissionRequestType": {...} }
+
+{ "CheckPermissionResponseType": {...} }'></textarea>
+
+                <div id="inputError"></div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">📤 生成的 Mock 响应</h2>
+                    <span class="badge" id="status">等待输入</span>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-success" onclick="copyOutput()">📋 复制结果</button>
+                    <button class="btn-secondary" onclick="downloadJSON()">💾 下载 JSON</button>
+                </div>
+
+                <textarea id="output" readonly placeholder="生成的 Mock 数据将显示在这里..."></textarea>
+
+                <div id="outputMessage"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const VALID_ACK_VALUES = ['Warning', 'Success', 'Failure'];
+
+        document.querySelectorAll('input[name="ackMode"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const errorInput = document.getElementById('errorMessage');
+                if (e.target.value === 'Success') {
+                    errorInput.disabled = true;
+                    errorInput.value = '';
+                } else {
+                    errorInput.disabled = false;
+                    if (!errorInput.value) {
+                        errorInput.value = e.target.value === 'Warning' 
+                            ? 'Warning: Please check your input'
+                            : 'Operation failed';
+                    }
+                }
+            });
+        });
+
+        function getSelectedAckMode() {
+            const selectedRadio = document.querySelector('input[name="ackMode"]:checked');
+            return selectedRadio.value;
+        }
+
+        function parseMultipleJSON(input) {
+            // 尝试解析为单个 JSON
+            try {
+                return [JSON.parse(input)];
+            } catch (e) {
+                // 如果失败，尝试分割成多个 JSON
+                const jsonObjects = [];
+                let depth = 0;
+                let currentJSON = '';
+                
+                for (let i = 0; i < input.length; i++) {
+                    const char = input[i];
+                    
+                    if (char === '{') {
+                        depth++;
+                        currentJSON += char;
+                    } else if (char === '}') {
+                        currentJSON += char;
+                        depth--;
+                        
+                        if (depth === 0 && currentJSON.trim()) {
+                            try {
+                                jsonObjects.push(JSON.parse(currentJSON.trim()));
+                                currentJSON = '';
+                            } catch (parseError) {
+                                // 继续累积
+                            }
+                        }
+                    } else if (depth > 0) {
+                        currentJSON += char;
+                    }
+                }
+                
+                if (jsonObjects.length === 0) {
+                    throw new Error('无法解析 JSON，请检查格式');
+                }
+                
+                return jsonObjects;
+            }
+        }
+
+        function mergeJSONObjects(jsonArray) {
+            if (jsonArray.length === 1) {
+                return jsonArray[0];
+            }
+            
+            // 合并多个 JSON 对象
+            const merged = {};
+            jsonArray.forEach(obj => {
+                Object.assign(merged, obj);
+            });
+            return merged;
+        }
+
+        function generateMock() {
+            const input = document.getElementById('input').value.trim();
+            const arrayCount = parseInt(document.getElementById('arrayCount').value) || 3;
+            const autoExtract = document.getElementById('autoExtract').checked;
+            const ackMode = getSelectedAckMode();
+            const errorMessage = document.getElementById('errorMessage').value || 'Operation failed';
+            const inputError = document.getElementById('inputError');
+            const outputMessage = document.getElementById('outputMessage');
+            const output = document.getElementById('output');
+            const status = document.getElementById('status');
+
+            inputError.innerHTML = '';
+            outputMessage.innerHTML = '';
+
+            if (!input) {
+                inputError.innerHTML = '<div class="error">❌ 请输入契约 JSON</div>';
+                status.textContent = '等待输入';
+                return;
+            }
+
+            try {
+                // 解析多个 JSON 对象
+                const jsonArray = parseMultipleJSON(input);
+                let contract = mergeJSONObjects(jsonArray);
+
+                let infoMessage = '';
+                if (jsonArray.length > 1) {
+                    infoMessage = `检测到 ${jsonArray.length} 个独立的 JSON 对象，已自动合并`;
+                }
+
+                if (autoExtract) {
+                    const extractResult = extractResponse(contract);
+                    contract = extractResult.contract;
+                    
+                    if (extractResult.info) {
+                        infoMessage += (infoMessage ? '<br>' : '') + extractResult.info;
+                    }
+                }
+
+                if (infoMessage) {
+                    outputMessage.innerHTML = `<div class="info">ℹ️ ${infoMessage}</div>`;
+                }
+
+                const mockData = generateMockData(contract, arrayCount, ackMode, errorMessage);
+                output.value = JSON.stringify(mockData, null, 4);
+                status.textContent = '✅ 生成成功';
+                status.style.background = '#28a745';
+                
+                const ackDisplay = ackMode === 'random' ? '随机' : ackMode;
+                const successMsg = `<div class="success">✅ Mock 数据生成成功！(Ack: ${ackDisplay})</div>`;
+                
+                outputMessage.innerHTML += successMsg;
+            } catch (error) {
+                inputError.innerHTML = `<div class="error">❌ 处理错误: ${error.message}</div>`;
+                status.textContent = '❌ 生成失败';
+                status.style.background = '#dc3545';
+            }
+        }
+
+        function extractResponse(contract) {
+            const keys = Object.keys(contract);
+            
+            const responsePatterns = [
+                /response$/i,
+                /responsetype$/i,
+            ];
+
+            let responseKey = null;
+            let requestKey = null;
+
+            for (const key of keys) {
+                if (responsePatterns.some(pattern => pattern.test(key))) {
+                    responseKey = key;
+                } else if (/request/i.test(key)) {
+                    requestKey = key;
+                }
+            }
+
+            if (responseKey) {
+                const hasRequest = requestKey !== null;
+                const info = hasRequest 
+                    ? `已自动提取响应部分：${responseKey}` 
+                    : null;
+
+                return {
+                    contract: contract[responseKey],
+                    info: info
+                };
+            }
+
+            return { contract, info: null };
+        }
+
+        function generateMockData(obj, arrayCount, ackMode, errorMessage, depth = 0) {
+            if (depth > 10) return obj;
+
+            if (Array.isArray(obj)) {
+                if (obj.length === 0) return [];
+                const template = obj[0];
+                return Array.from({ length: arrayCount }, (_, i) => 
+                    generateMockData(template, arrayCount, ackMode, errorMessage, depth + 1)
+                );
+            }
+
+            if (obj !== null && typeof obj === 'object') {
+                const result = {};
+                for (const [key, value] of Object.entries(obj)) {
+                    if (key.toLowerCase() === 'responsestatus') {
+                        result['ResponseStatus'] = processResponseStatus(value, arrayCount, ackMode, errorMessage, depth);
+                    } else if (key.toLowerCase() === 'ack') {
+                        result['Ack'] = generateAck(ackMode);
+                    } else {
+                        result[key] = generateMockData(value, arrayCount, ackMode, errorMessage, depth + 1);
+                    }
+                }
+                return result;
+            }
+
+            return generateMockValue(obj);
+        }
+
+        function processResponseStatus(statusObj, arrayCount, ackMode, errorMessage, depth) {
+            const ack = generateAck(ackMode);
+            const timestamp = `/Date(${Date.now()}+0800)/`;
+            
+            const baseStatus = {
+                Timestamp: timestamp,
+                Ack: ack,
+                Errors: ack === 'Success' ? null : [
+                    {
+                        Message: errorMessage,
+                        ErrorCode: ack === 'Warning' ? '201' : '301',
+                        StackTrace: null,
+                        SeverityCode: null,
+                        ErrorFields: [],
+                        ErrorClassification: null
+                    }
+                ],
+                Build: null,
+                Version: null,
+                Extension: [
+                    {
+                        Id: "CLOGGING_TRACE_ID",
+                        Version: null,
+                        ContentType: null,
+                        Value: Math.random().toString().slice(2, 21)
+                    },
+                    {
+                        Id: "RootMessageId",
+                        Version: null,
+                        ContentType: null,
+                        Value: `${Math.floor(Math.random() * 1000000000)}-${Math.random().toString(36).substr(2, 8)}-${Math.floor(Math.random() * 1000000)}-${Math.floor(Math.random() * 1000000)}`
+                    }
+                ]
+            };
+
+            if (statusObj !== null && typeof statusObj === 'object') {
+                for (const [key, value] of Object.entries(statusObj)) {
+                    const lowerKey = key.toLowerCase();
+                    
+                    if (lowerKey === 'ack' || lowerKey === 'timestamp' || lowerKey === 'errors') {
+                        continue;
+                    } else if (lowerKey === 'responsecode') {
+                        baseStatus['ResponseCode'] = ack === 'Success' ? 200 : (ack === 'Warning' ? 201 : 400);
+                    } else if (lowerKey === 'code') {
+                        baseStatus['code'] = ack === 'Success' ? '200' : (ack === 'Warning' ? '201' : '400');
+                    } else if (lowerKey === 'msg') {
+                        baseStatus['msg'] = ack === 'Success' ? 'Success' : errorMessage;
+                    } else {
+                        const capitalizedKey = key.charAt(0).toUpperCase() + key.slice(1);
+                        baseStatus[capitalizedKey] = generateMockData(value, arrayCount, ackMode, errorMessage, depth + 1);
+                    }
+                }
+            }
+
+            return baseStatus;
+        }
+
+        function generateAck(mode) {
+            if (mode === 'random') {
+                return VALID_ACK_VALUES[Math.floor(Math.random() * VALID_ACK_VALUES.length)];
+            }
+            return mode;
+        }
+
+        function generateMockValue(value) {
+            if (value === null) return null;
+
+            const type = typeof value;
+
+            switch (type) {
+                case 'string':
+                    if (value.match(/^\d{4}-\d{2}-\d{2}/)) {
+                        return new Date().toISOString().replace('T', ' ').split('.')[0];
+                    }
+                    if (value.match(/^\/Date\(/)) {
+                        return `/Date(${Date.now()}+0800)/`;
+                    }
+                    return value === 'string' ? `mock_${Math.random().toString(36).substr(2, 8)}` : value;
+                
+                case 'number':
+                    return value === 0 ? Math.floor(Math.random() * 1000) + 1 : value;
+                
+                case 'boolean':
+                    return Math.random() > 0.5;
+                
+                default:
+                    return value;
+            }
+        }
+
+        function clearInput() {
+            document.getElementById('input').value = '';
+            document.getElementById('output').value = '';
+            document.getElementById('inputError').innerHTML = '';
+            document.getElementById('outputMessage').innerHTML = '';
+            document.getElementById('status').textContent = '等待输入';
+            document.getElementById('status').style.background = '#6c7a89';
+        }
+
+        function copyOutput() {
+            const output = document.getElementById('output');
+            const outputMessage = document.getElementById('outputMessage');
+            
+            if (!output.value) {
+                outputMessage.innerHTML = '<div class="error">❌ 没有可复制的内容</div>';
+                return;
+            }
+
+            output.select();
+            document.execCommand('copy');
+            
+            const existingInfo = outputMessage.innerHTML.includes('info') 
+                ? outputMessage.innerHTML.match(/<div class="info">.*?<\/div>/)[0]
+                : '';
+            
+            outputMessage.innerHTML = existingInfo + '<div class="success">✅ 已复制到剪贴板！</div>';
+            
+            setTimeout(() => {
+                if (existingInfo) {
+                    outputMessage.innerHTML = existingInfo;
+                } else {
+                    outputMessage.innerHTML = '';
+                }
+            }, 3000);
+        }
+
+        function downloadJSON() {
+            const output = document.getElementById('output').value;
+            const outputMessage = document.getElementById('outputMessage');
+            
+            if (!output) {
+                outputMessage.innerHTML = '<div class="error">❌ 没有可下载的内容</div>';
+                return;
+            }
+
+            const blob = new Blob([output], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `mock-data-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            const existingInfo = outputMessage.innerHTML.includes('info') 
+                ? outputMessage.innerHTML.match(/<div class="info">.*?<\/div>/)[0]
+                : '';
+            
+            outputMessage.innerHTML = existingInfo + '<div class="success">✅ 文件下载成功！</div>';
+            
+            setTimeout(() => {
+                if (existingInfo) {
+                    outputMessage.innerHTML = existingInfo;
+                } else {
+                    outputMessage.innerHTML = '';
+                }
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
