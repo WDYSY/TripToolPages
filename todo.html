@@ -1,0 +1,2391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Todo Board</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #f5f4f0;
+  --surface: #faf9f7;
+  --surface2: #f0ede8;
+  --border: #e8e5e0;
+  --border2: #dedad4;
+  --text: #4a4a4a;
+  --text2: #888;
+  --text3: #bbb;
+  --accent: #8ab09a;
+  --red: #c0735a;
+  --yellow: #b8924a;
+  --green: #7aaa8a;
+  --blue: #7a9ab0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+}
+
+/* ── 统计栏 ── */
+.stats-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 28px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.stats-bar h1 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #3a3a3a;
+  margin-right: 4px;
+}
+
+.stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface2);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 11px;
+  color: var(--text2);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+.stat-chip .num { font-weight: 700; font-size: 13px; color: #3a3a3a; }
+.stat-chip.c-done .num   { color: var(--green); }
+.stat-chip.c-over .num   { color: var(--red); }
+.stat-chip.c-soon .num   { color: var(--yellow); }
+
+.progress-wrap {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text2);
+}
+.progress-bar {
+  width: 100px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--green));
+  border-radius: 10px;
+  transition: width 0.4s ease;
+}
+
+/* ── 工具栏 ── */
+.toolbar {
+  padding: 12px 28px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.inp {
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 13px;
+  background: #fff;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+.inp:focus { border-color: #c5bdb4; }
+.inp::placeholder { color: var(--text3); }
+
+#inp-name { width: 170px; }
+#inp-url  { width: 220px; }
+#inp-ddl  { width: 140px; }
+
+.cat-select {
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 13px;
+  background: #fff;
+  color: var(--text);
+  outline: none;
+  cursor: pointer;
+  min-width: 110px;
+}
+
+.btn {
+  border: none;
+  border-radius: 7px;
+  padding: 6px 13px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 500;
+  font-family: inherit;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-add  { background: #d6cfc6; color: #3a3a3a; }
+.btn-add:hover { background: #cac3b9; }
+.btn-del  { background: #f0e8e5; color: var(--red); }
+.btn-del:hover { background: #e8dbd7; }
+.btn-done { background: #e8ede9; color: #5a8a6a; }
+.btn-done:hover { background: #dde6de; }
+.btn-cat  { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+.btn-cat:hover { background: var(--border); }
+
+.hint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text3);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.kbd {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 10px;
+  color: var(--text2);
+}
+
+/* ── 视图切换 ── */
+.view-tabs {
+  padding: 12px 28px 0;
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.view-tab {
+  padding: 7px 16px;
+  font-size: 12px;
+  color: var(--text2);
+  cursor: pointer;
+  border-radius: 7px 7px 0 0;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  transition: all 0.15s;
+  font-family: inherit;
+  font-weight: 500;
+}
+.view-tab:hover { color: var(--text); background: var(--surface2); }
+.view-tab.active {
+  color: #3a3a3a;
+  background: var(--bg);
+  border-color: var(--border);
+  border-bottom-color: var(--bg);
+  margin-bottom: -1px;
+}
+
+/* ── 看板视图 ── */
+.kanban-wrap {
+  padding: 20px 28px;
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  align-items: flex-start;
+  min-height: calc(100vh - 200px);
+}
+
+.kanban-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 260px;
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 220px);
+}
+
+.kanban-col-header {
+  padding: 12px 14px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.cat-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.kanban-col-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #3a3a3a;
+  flex: 1;
+  cursor: text;
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin: -1px -4px;
+}
+.kanban-col-title:focus {
+  outline: none;
+  background: var(--surface2);
+}
+
+.kanban-col-count {
+  font-size: 11px;
+  color: var(--text3);
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 1px 7px;
+}
+
+.kanban-col-del {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.kanban-col-del:hover { color: var(--red); }
+
+.kanban-cards {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 60px;
+}
+
+.kanban-cards.drag-over-col {
+  background: rgba(138,176,154,0.07);
+  border-radius: 8px;
+}
+
+/* 卡片 */
+.card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 10px 12px;
+  cursor: grab;
+  transition: box-shadow 0.15s, transform 0.15s;
+  user-select: none;
+}
+.card:active { cursor: grabbing; }
+.card:hover {
+  box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+  transform: translateY(-1px);
+}
+.card.dragging { opacity: 0.4; }
+.card.done-card {
+  opacity: 0.55;
+}
+
+.card-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #3a3a3a;
+  margin-bottom: 6px;
+  line-height: 1.4;
+  cursor: text;
+  border-radius: 4px;
+  padding: 1px 3px;
+  margin: -1px -3px 5px;
+}
+.card-name:focus { outline: none; background: var(--surface2); }
+.done-card .card-name { text-decoration: line-through; color: var(--text3); }
+
+.card-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--blue);
+  text-decoration: none;
+  margin-bottom: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card-link:hover { text-decoration: underline; }
+
+.card-link-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.card-link-row .card-link { margin-bottom: 0; flex: 1; min-width: 0; }
+.card-link-edit {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.card-link-edit:hover { color: var(--blue); background: var(--surface2); }
+.card-link-add {
+  color: var(--text3);
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 1px 3px;
+}
+.card-link-add:hover { color: var(--blue); text-decoration: underline; }
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.card-ddl {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 8px;
+  background: var(--surface2);
+  color: var(--text2);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: border-color 0.15s;
+  font-family: inherit;
+}
+.card-ddl:hover { border-color: var(--border2); }
+.card-ddl.overdue { background: #f5e8e4; color: var(--red); }
+.card-ddl.soon    { background: #f5ede0; color: var(--yellow); }
+.card-ddl-input {
+  font-size: 11px;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 2px 6px;
+  background: #fff;
+  color: var(--text);
+  outline: none;
+  font-family: inherit;
+  width: 120px;
+}
+
+.card-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.card-btn {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: all 0.15s;
+}
+.card-btn:hover { background: var(--surface2); color: var(--text2); }
+.card-btn.del:hover { color: var(--red); background: #f5e8e4; }
+.card-btn.check:hover { color: var(--green); background: #e8ede9; }
+.card-btn.checked { color: var(--green); }
+
+.add-col-btn {
+  background: var(--surface);
+  border: 1px dashed var(--border2);
+  border-radius: 12px;
+  width: 200px;
+  min-width: 200px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text3);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  align-self: flex-start;
+}
+.add-col-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(138,176,154,0.05); }
+
+/* ── 日程视图 ── */
+.timeline-wrap {
+  padding: 20px 28px;
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  align-items: flex-start;
+  min-height: calc(100vh - 200px);
+}
+.tl-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 190px;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 220px);
+  flex-shrink: 0;
+}
+.tl-col.tl-weekend {
+  background: repeating-linear-gradient(45deg, #efece7, #efece7 10px, #eae6e0 10px, #eae6e0 20px);
+  opacity: 0.7;
+  width: 130px;
+  min-width: 130px;
+}
+.tl-col.tl-today {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.tl-col.tl-overdue { border-color: #e6c3b8; }
+.tl-col.tl-nodate  { border-style: dashed; }
+
+.tl-col-header {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.tl-hd-row { display: flex; align-items: center; gap: 6px; }
+.tl-wd { font-size: 12px; font-weight: 600; color: #3a3a3a; }
+.tl-date { font-size: 11px; color: var(--text2); letter-spacing: 0.3px; }
+.tl-rel {
+  font-size: 10px;
+  color: var(--accent);
+  background: rgba(138,176,154,0.14);
+  border-radius: 8px;
+  padding: 1px 6px;
+}
+.tl-overdue .tl-wd { color: var(--red); }
+.tl-count {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text3);
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 1px 7px;
+}
+.tl-cards {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 50px;
+}
+.tl-cards.drag-over-col {
+  background: rgba(138,176,154,0.1);
+  border-radius: 8px;
+}
+.tl-empty {
+  color: var(--text3);
+  font-size: 11px;
+  text-align: center;
+  padding: 14px 4px;
+}
+.tl-divider {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  color: var(--text3);
+  font-size: 10px;
+  writing-mode: vertical-rl;
+  padding: 4px 0;
+}
+
+/* ── 列表视图 ── */
+.table-wrap {
+  padding: 20px 28px;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+
+thead tr { background: var(--surface2); }
+
+th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+tbody tr {
+  border-bottom: 1px solid #eee9e3;
+  transition: background 0.12s;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #f7f4ef; }
+tbody tr.done-row { opacity: 0.5; }
+tbody tr.done-row .name-span { text-decoration: line-through; color: var(--text3); }
+tbody tr.selected { background: #eee9e1 !important; }
+
+td {
+  padding: 9px 14px;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.editable {
+  border-radius: 4px;
+  padding: 2px 4px;
+  cursor: text;
+  transition: background 0.15s;
+}
+.editable:hover { background: var(--surface2); }
+.editable:focus { outline: none; background: #fff; box-shadow: 0 0 0 2px var(--border2); }
+
+.link-a {
+  color: var(--blue);
+  text-decoration: none;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.link-a:hover { text-decoration: underline; }
+
+.link-cell { display: inline-flex; align-items: center; gap: 3px; }
+.row-linkedit {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+.row-linkedit:hover { color: var(--blue); background: var(--surface2); }
+.row-linkadd { color: var(--text3); font-size: 11px; cursor: pointer; }
+.row-linkadd:hover { color: var(--blue); text-decoration: underline; }
+
+.ddl-badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: var(--surface2);
+  color: var(--text2);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: border-color 0.15s;
+  font-family: inherit;
+}
+.ddl-badge:hover { border-color: var(--border2); }
+.ddl-badge.overdue { background: #f5e8e4; color: var(--red); }
+.ddl-badge.soon    { background: #f5ede0; color: var(--yellow); }
+.ddl-input-cell {
+  font-size: 11px;
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  padding: 2px 6px;
+  background: #fff;
+  color: var(--text);
+  outline: none;
+  font-family: inherit;
+}
+
+.status-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text2);
+}
+.status-dot::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #d0ccc6;
+  display: inline-block;
+}
+.status-dot.done    { color: var(--green); }
+.status-dot.done::before { background: var(--green); }
+.status-dot.overdue { color: var(--red); }
+.status-dot.overdue::before { background: var(--red); }
+.status-dot.soon    { color: var(--yellow); }
+.status-dot.soon::before { background: var(--yellow); }
+
+.cat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: var(--surface2);
+  color: var(--text2);
+}
+
+.row-del {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+.row-del:hover { color: var(--red); background: #f5e8e4; }
+
+.empty-row td {
+  text-align: center;
+  padding: 50px;
+  color: var(--text3);
+  font-size: 13px;
+}
+
+/* ── 分类管理弹窗 ── */
+.modal-bg {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.25);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+.modal-bg.show { display: flex; }
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  width: 380px;
+  max-width: 95vw;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+}
+.modal h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #3a3a3a;
+  margin-bottom: 16px;
+  cursor: move;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.modal h3 .drag-handle {
+  color: var(--text3);
+  font-size: 13px;
+  letter-spacing: -1px;
+}
+
+.cat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.cat-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.cat-color-pick {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border2);
+  cursor: pointer;
+  padding: 0;
+  background: none;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.cat-color-pick input[type=color] {
+  width: 36px; height: 36px;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  margin: -7px -7px;
+  opacity: 0;
+  position: absolute;
+}
+.cat-color-dot {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  border: 2px solid rgba(0,0,0,0.08);
+}
+
+.cat-name-inp {
+  flex: 1;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 3px 6px;
+  font-size: 13px;
+  background: transparent;
+  color: var(--text);
+  outline: none;
+  font-family: inherit;
+}
+.cat-name-inp:focus { border-color: var(--border2); background: #fff; }
+
+.cat-item-del {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.cat-item-del:hover { color: var(--red); }
+
+.modal-add-cat {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.modal-add-cat input {
+  flex: 1;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ── 子任务 ── */
+.subtask-progress {
+  font-size: 11px;
+  color: var(--text2);
+  margin-bottom: 10px;
+  min-height: 14px;
+}
+.subtask-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.subtask-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 7px 10px;
+}
+.subtask-item input[type=checkbox] { cursor: pointer; flex-shrink: 0; }
+.subtask-text {
+  flex: 1;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 3px 6px;
+  font-size: 13px;
+  background: transparent;
+  color: var(--text);
+  outline: none;
+  font-family: inherit;
+}
+.subtask-text:focus { border-color: var(--border2); background: #fff; }
+.subtask-item.done .subtask-text { text-decoration: line-through; color: var(--text3); }
+.subtask-del {
+  background: none; border: none;
+  color: var(--text3); cursor: pointer;
+  font-size: 14px; padding: 2px 4px;
+  border-radius: 4px; flex-shrink: 0;
+  transition: color 0.15s;
+}
+.subtask-del:hover { color: var(--red); }
+.subtask-hint {
+  font-size: 11px;
+  color: var(--text3);
+  margin-bottom: 12px;
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.subtask-empty {
+  font-size: 12px;
+  color: var(--text3);
+  text-align: center;
+  padding: 12px 0;
+}
+
+/* 卡片上的子任务（展开） */
+.card-subs {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 4px;
+}
+.card-sub {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text2);
+  cursor: default;
+  line-height: 1.35;
+}
+.card-sub input[type=checkbox] {
+  cursor: pointer;
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  margin: 2px 0 0;
+}
+.card-sub-text { flex: 1; word-break: break-word; }
+.card-sub.done .card-sub-text { text-decoration: line-through; color: var(--text3); }
+.card-sub-add {
+  font-size: 11px;
+  color: var(--text3);
+  cursor: pointer;
+  margin-bottom: 6px;
+  padding: 1px 3px;
+  border-radius: 4px;
+  display: inline-block;
+  transition: color 0.15s;
+}
+.card-sub-add:hover { color: var(--accent); }
+
+/* 列表里的子任务数 & 按钮 */
+.sub-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 1px 6px;
+  margin-left: 6px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.sub-count.all-done { color: var(--green); }
+.row-sub {
+  background: none; border: none;
+  color: var(--text3); cursor: pointer;
+  font-size: 13px; padding: 2px 4px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+.row-sub:hover { color: var(--accent); background: var(--surface2); }
+
+/* ── 拖拽遮罩 ── */
+#drop-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(245,244,240,0.88);
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+#drop-overlay.show { display: flex; }
+#drop-overlay .di { font-size: 36px; opacity: 0.35; }
+#drop-overlay .dt { font-size: 15px; color: var(--text2); }
+
+/* ── Toast ── */
+#toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: #3a3a3a;
+  color: #f0ede8;
+  padding: 7px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  opacity: 0;
+  transition: all 0.25s;
+  pointer-events: none;
+  z-index: 1000;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 700px) {
+  .stats-bar, .toolbar, .table-wrap, .kanban-wrap { padding: 10px 12px; }
+  .progress-wrap { display: none; }
+  #inp-url { width: 160px; }
+}
+</style>
+</head>
+<body>
+
+<!-- 统计栏 -->
+<div class="stats-bar">
+  <h1>📋 Todo</h1>
+  <div class="stat-chip"><span>全部</span><span class="num" id="s-total">0</span></div>
+  <div class="stat-chip c-done"><span>完成</span><span class="num" id="s-done">0</span></div>
+  <div class="stat-chip c-over"><span>逾期</span><span class="num" id="s-over">0</span></div>
+  <div class="stat-chip c-soon"><span>即将到期</span><span class="num" id="s-soon">0</span></div>
+  <div class="stat-chip"><span>分类</span><span class="num" id="s-cats">0</span></div>
+  <div class="progress-wrap">
+    <span id="s-pct">0%</span>
+    <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+    <span>完成率</span>
+  </div>
+</div>
+
+<!-- 工具栏 -->
+<div class="toolbar">
+  <input class="inp" type="text" id="inp-name" placeholder="名称" />
+  <input class="inp" type="url"  id="inp-url"  placeholder="链接（可选）" />
+  <input class="inp" type="date" id="inp-ddl" />
+  <select class="cat-select" id="inp-cat"></select>
+  <button class="btn btn-add" onclick="addItem()">＋ 添加</button>
+  <button class="btn btn-del"  onclick="deleteSelected()">删除选中</button>
+  <button class="btn btn-done" onclick="clearDone()">清除已完成</button>
+  <button class="btn btn-cat"  onclick="openCatModal()">⊞ 管理分类</button>
+  <button class="btn btn-cat"  onclick="exportData()">⬇ 导出</button>
+  <button class="btn btn-cat"  onclick="document.getElementById('import-file').click()">⬆ 导入</button>
+  <input type="file" id="import-file" accept="application/json,.json" style="display:none" onchange="importData(this)">
+  <div class="hint">
+    <span class="kbd">⌘V</span>粘贴
+    <span style="margin:0 3px">·</span>
+    <span class="kbd">拖入</span>链接
+  </div>
+</div>
+
+<!-- 视图切换 -->
+<div class="view-tabs">
+  <button class="view-tab active" id="tab-kanban" onclick="switchView('kanban')">看板</button>
+  <button class="view-tab" id="tab-list"   onclick="switchView('list')">列表</button>
+  <button class="view-tab" id="tab-timeline" onclick="switchView('timeline')">日程</button>
+  <button class="view-tab" id="tab-initiator" onclick="switchView('initiator')">发起人</button>
+</div>
+
+<!-- 看板视图 -->
+<div class="kanban-wrap" id="kanban-view">
+  <!-- 动态生成 -->
+</div>
+
+<!-- 日程视图 -->
+<div class="timeline-wrap" id="timeline-view" style="display:none"></div>
+
+<!-- 发起人视图 -->
+<div class="kanban-wrap" id="initiator-view" style="display:none"></div>
+
+<!-- 列表视图 -->
+<div class="table-wrap" id="list-view" style="display:none">
+  <table id="todo-table">
+    <thead>
+      <tr>
+        <th style="width:36px"><input type="checkbox" id="check-all" onchange="toggleAll(this)"></th>
+        <th style="width:36px">#</th>
+        <th>名称</th>
+        <th>链接</th>
+        <th>截止日期</th>
+        <th>分类</th>
+        <th>状态</th>
+        <th style="width:40px"></th>
+      </tr>
+    </thead>
+    <tbody id="todo-body"></tbody>
+  </table>
+</div>
+
+<!-- 分类管理弹窗 -->
+<div class="modal-bg" id="cat-modal" onclick="closeCatModalBg(event)">
+  <div class="modal" id="cat-modal-box">
+    <h3 id="cat-modal-handle"><span class="drag-handle">⠿</span> 管理分类</h3>
+    <div class="cat-list" id="cat-list"></div>
+    <div class="modal-add-cat">
+      <input class="inp" type="text" id="new-cat-name" placeholder="新分类名称" style="flex:1"
+        onkeydown="if(event.key==='Enter') addCat()">
+      <button class="btn btn-add" onclick="addCat()">＋ 添加</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cat" onclick="closeCatModal()">完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- 通用输入弹窗（替代系统 prompt） -->
+<div class="modal-bg" id="prompt-modal" onclick="if(event.target===this)promptResolve(null)">
+  <div class="modal" style="width:320px">
+    <h3 id="prompt-title">输入</h3>
+    <input class="inp" type="text" id="prompt-input" style="width:100%;margin-bottom:16px"
+      onkeydown="if(event.key==='Enter')promptResolve(this.value);else if(event.key==='Escape')promptResolve(null)">
+    <div class="modal-footer">
+      <button class="btn btn-cat" onclick="promptResolve(null)">取消</button>
+      <button class="btn btn-add" onclick="promptResolve(document.getElementById('prompt-input').value)">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 任务详情 / 子任务弹窗 -->
+<div class="modal-bg" id="task-modal" onclick="if(event.target===this)closeTaskModal()">
+  <div class="modal" id="task-modal-box" style="width:440px">
+    <h3 id="task-modal-title">任务</h3>
+    <div class="subtask-progress" id="subtask-progress"></div>
+    <div class="subtask-list" id="subtask-list"></div>
+    <div class="subtask-hint">💡 多个子任务用分号 <b>;</b> 分隔，一次回车批量添加；粘贴多行文本也会逐行拆分</div>
+    <div class="modal-add-cat">
+      <input class="inp" type="text" id="new-subtask" placeholder="输入子任务，多个用 ; 分隔，回车添加" style="flex:1"
+        onkeydown="if(event.key==='Enter')addSubtaskFromInput()">
+      <button class="btn btn-add" onclick="addSubtaskFromInput()">＋ 添加</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cat" onclick="closeTaskModal()">完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- 拖拽遮罩 -->
+<div id="drop-overlay">
+  <div class="di">🔗</div>
+  <div class="dt">松开以添加链接</div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  常量 & 初始颜色
+// ═══════════════════════════════════════════════
+const STORE_ITEMS = 'todo_items_v3';
+const STORE_CATS  = 'todo_cats_v3';
+
+const DEFAULT_CATS = [
+  { id: 'cat-1', name: '工作',   color: '#8ab09a' },
+  { id: 'cat-2', name: '学习',   color: '#7a9ab0' },
+  { id: 'cat-3', name: '生活',   color: '#b8a98a' },
+];
+
+// ═══════════════════════════════════════════════
+//  数据
+// ═══════════════════════════════════════════════
+// 归一化单条数据：兼容旧格式（无 subtasks / subtasks 为字符串数组等）
+function normalizeItem(i) {
+  i = i || {};
+  const subtasks = Array.isArray(i.subtasks)
+    ? i.subtasks.map(s =>
+        typeof s === 'string'
+          ? { id: uid(), text: s.trim(), done: false }
+          : { id: s.id || uid(), text: String(s.text ?? s.name ?? '').trim(), done: !!s.done }
+      ).filter(s => s.text)
+    : [];
+  return {
+    id:      i.id || uid(),
+    name:    String(i.name ?? ''),
+    url:     i.url || '',
+    ddl:     i.ddl || '',
+    catId:   i.catId || '',
+    done:    !!i.done,
+    subtasks,
+  };
+}
+
+function loadItems() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORE_ITEMS)) || [];
+    return Array.isArray(raw) ? raw.map(normalizeItem) : [];
+  } catch { return []; }
+}
+function loadCats() {
+  try {
+    const c = JSON.parse(localStorage.getItem(STORE_CATS));
+    return c && c.length ? c : DEFAULT_CATS;
+  } catch { return DEFAULT_CATS; }
+}
+function saveItems() { localStorage.setItem(STORE_ITEMS, JSON.stringify(items)); }
+function saveCats()  { localStorage.setItem(STORE_CATS,  JSON.stringify(cats)); }
+
+let items = loadItems();
+let cats  = loadCats();
+let currentView = 'timeline';
+let dragItemId  = null;
+
+// ═══════════════════════════════════════════════
+//  工具
+// ═══════════════════════════════════════════════
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+function today() { return new Date().toISOString().slice(0,10); }
+
+function ddlStatus(ddl, done) {
+  if (done) return 'done';
+  if (!ddl) return 'none';
+  const t = today();
+  if (ddl < t) return 'overdue';
+  if ((new Date(ddl) - new Date(t)) / 86400000 <= 3) return 'soon';
+  return 'ok';
+}
+
+function fmtDDL(ddl) {
+  if (!ddl) return '';
+  const [y,m,d] = ddl.split('-');
+  const t = today();
+  if (ddl === t) return '今天';
+  const diff = Math.round((new Date(ddl) - new Date(t)) / 86400000);
+  if (diff === 1) return '明天';
+  if (diff === -1) return '昨天';
+  if (diff > 1 && diff <= 7) return `${diff}天后`;
+  if (diff < 0 && diff >= -7) return `${-diff}天前`;
+  return `${m}/${d}`;
+}
+
+// 年月日格式（用于 tag 展示）
+function fmtDate(ddl) {
+  if (!ddl) return '';
+  const [y, m, d] = ddl.split('-');
+  if (!y || !m || !d) return ddl;
+  return `${y}-${m}-${d}`;
+}
+
+function shortUrl(url) {
+  try {
+    const u = new URL(url);
+    let s = u.hostname.replace('www.','') + (u.pathname !== '/' ? u.pathname : '');
+    return s.length > 26 ? s.slice(0,26)+'…' : s;
+  } catch { return url.slice(0,28); }
+}
+
+function escH(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function getCat(id) { return cats.find(c => c.id === id); }
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// ═══════════════════════════════════════════════
+//  自定义输入弹窗（替代 prompt）
+// ═══════════════════════════════════════════════
+let _promptCb = null;
+function customPrompt(title, defVal = '') {
+  return new Promise(resolve => {
+    _promptCb = resolve;
+    document.getElementById('prompt-title').textContent = title;
+    const inp = document.getElementById('prompt-input');
+    inp.value = defVal;
+    document.getElementById('prompt-modal').classList.add('show');
+    setTimeout(() => { inp.focus(); inp.select(); }, 30);
+  });
+}
+function promptResolve(val) {
+  document.getElementById('prompt-modal').classList.remove('show');
+  const cb = _promptCb;
+  _promptCb = null;
+  if (cb) cb(val === null ? null : String(val).trim());
+}
+
+// ═══════════════════════════════════════════════
+//  导出 / 导入数据
+// ═══════════════════════════════════════════════
+function exportData() {
+  const data = {
+    _type: 'todo-board-backup',
+    version: 4,
+    exportedAt: new Date().toISOString(),
+    items: items.map(normalizeItem), // 去掉临时字段(_sel)、保证含 subtasks
+    cats,
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `todo-backup-${today()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  toast('已导出备份 ✓');
+}
+
+function importData(input) {
+  const file = input.files && input.files[0];
+  input.value = ''; // 允许重复选择同一文件
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let data;
+    try { data = JSON.parse(reader.result); }
+    catch { toast('文件格式错误，无法解析'); return; }
+
+    const newItems = Array.isArray(data) ? data : data.items;
+    const newCats  = Array.isArray(data) ? null : data.cats;
+    if (!Array.isArray(newItems)) { toast('无效的备份文件'); return; }
+
+    const n = newItems.length;
+    if (!confirm(`导入将覆盖当前数据（${items.length} 条 → ${n} 条），是否继续？`)) return;
+
+    items = newItems.map(normalizeItem); // 兼容任意历史版本（缺 subtasks 等）
+    if (Array.isArray(newCats) && newCats.length) cats = newCats;
+    saveItems();
+    saveCats();
+    render();
+    toast(`已导入 ${n} 条数据 ✓`);
+  };
+  reader.readAsText(file);
+}
+
+// ═══════════════════════════════════════════════
+//  子任务
+// ═══════════════════════════════════════════════
+let currentTaskId = null;
+
+function openTaskModal(id) {
+  const it = items.find(i => i.id === id);
+  if (!it) return;
+  currentTaskId = id;
+  document.getElementById('task-modal-title').textContent = it.name || '任务';
+  renderSubtasks();
+  document.getElementById('task-modal').classList.add('show');
+  // 打开即聚焦输入框
+  const inp = document.getElementById('new-subtask');
+  setTimeout(() => { inp.focus(); }, 30);
+}
+
+function closeTaskModal() {
+  document.getElementById('task-modal').classList.remove('show');
+  currentTaskId = null;
+  render();
+}
+
+function renderSubtasks() {
+  const it = items.find(i => i.id === currentTaskId);
+  const listEl = document.getElementById('subtask-list');
+  const progEl = document.getElementById('subtask-progress');
+  if (!it) return;
+  it.subtasks = it.subtasks || [];
+
+  const total = it.subtasks.length;
+  const done  = it.subtasks.filter(s => s.done).length;
+  progEl.textContent = total ? `已完成 ${done} / ${total}` : '';
+
+  listEl.innerHTML = '';
+  if (!total) {
+    const e = document.createElement('div');
+    e.className = 'subtask-empty';
+    e.textContent = '还没有子任务 · 粘贴或输入即可添加';
+    listEl.appendChild(e);
+    return;
+  }
+
+  it.subtasks.forEach(s => {
+    const row = document.createElement('div');
+    row.className = 'subtask-item' + (s.done ? ' done' : '');
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = s.done;
+    cb.onchange = () => { s.done = cb.checked; saveItems(); renderSubtasks(); };
+
+    const txt = document.createElement('input');
+    txt.className = 'subtask-text';
+    txt.value = s.text;
+    txt.onblur = () => {
+      const v = txt.value.trim();
+      if (v) s.text = v; else txt.value = s.text;
+      saveItems();
+    };
+    txt.onkeydown = e => { if (e.key === 'Enter') txt.blur(); };
+
+    const del = document.createElement('button');
+    del.className = 'subtask-del';
+    del.textContent = '✕';
+    del.title = '删除子任务';
+    del.onclick = () => {
+      it.subtasks = it.subtasks.filter(x => x.id !== s.id);
+      saveItems();
+      renderSubtasks();
+    };
+
+    row.appendChild(cb);
+    row.appendChild(txt);
+    row.appendChild(del);
+    listEl.appendChild(row);
+  });
+}
+
+// 把一段文本按 分号(; ；) / 换行 拆分，逐条加为子任务
+function addSubtasks(id, text) {
+  const it = items.find(i => i.id === id);
+  if (!it) return;
+  it.subtasks = it.subtasks || [];
+  const lines = String(text).split(/[\r\n;；]+/).map(s => s.trim()).filter(Boolean);
+  if (!lines.length) return;
+  lines.forEach(line => it.subtasks.push({ id: uid(), text: line.slice(0, 200), done: false }));
+  saveItems();
+  renderSubtasks();
+  toast(`已添加 ${lines.length} 个子任务 ✓`);
+}
+
+function addSubtaskFromInput() {
+  const inp = document.getElementById('new-subtask');
+  const v = inp.value.trim();
+  if (!v) return;
+  addSubtasks(currentTaskId, v);
+  inp.value = '';
+  inp.focus();
+}
+
+// ═══════════════════════════════════════════════
+//  统计
+// ═══════════════════════════════════════════════
+function updateStats() {
+  const total = items.length;
+  const done  = items.filter(i => i.done).length;
+  const over  = items.filter(i => ddlStatus(i.ddl, i.done) === 'overdue').length;
+  const soon  = items.filter(i => ddlStatus(i.ddl, i.done) === 'soon').length;
+  const pct   = total ? Math.round(done / total * 100) : 0;
+
+  document.getElementById('s-total').textContent = total;
+  document.getElementById('s-done').textContent  = done;
+  document.getElementById('s-over').textContent  = over;
+  document.getElementById('s-soon').textContent  = soon;
+  document.getElementById('s-cats').textContent  = cats.length;
+  document.getElementById('s-pct').textContent   = pct + '%';
+  document.getElementById('prog-fill').style.width = pct + '%';
+}
+
+// ═══════════════════════════════════════════════
+//  分类选择器
+// ═══════════════════════════════════════════════
+function renderCatSelect() {
+  const sel = document.getElementById('inp-cat');
+  const cur = sel.value;
+  sel.innerHTML = cats.map(c =>
+    `<option value="${c.id}">${c.name}</option>`
+  ).join('');
+  if (cur && cats.find(c => c.id === cur)) sel.value = cur;
+}
+
+// ═══════════════════════════════════════════════
+//  添加 / 删除 Item
+// ═══════════════════════════════════════════════
+function addItem(name, url, ddl, catId) {
+  name  = name  ?? document.getElementById('inp-name').value.trim();
+  url   = url   ?? document.getElementById('inp-url').value.trim();
+  ddl   = ddl   ?? document.getElementById('inp-ddl').value;
+  catId = catId ?? document.getElementById('inp-cat').value;
+
+  if (!name && !url) { toast('请填写名称或链接'); return; }
+  if (!name && url) {
+    try { name = new URL(url).hostname.replace('www.',''); }
+    catch { name = url.slice(0,30); }
+  }
+  if (!ddl) ddl = today();
+
+  items.push({ id: uid(), name, url, ddl, catId, done: false, subtasks: [] });
+  saveItems();
+
+  document.getElementById('inp-name').value = '';
+  document.getElementById('inp-url').value  = '';
+  document.getElementById('inp-ddl').value  = '';
+
+  render();
+  toast('已添加 ✓');
+}
+
+function deleteItem(id) {
+  items = items.filter(i => i.id !== id);
+  saveItems();
+  render();
+}
+
+function toggleDone(id) {
+  const it = items.find(i => i.id === id);
+  if (it) { it.done = !it.done; saveItems(); render(); }
+}
+
+function deleteSelected() {
+  const sel = items.filter(i => i._sel);
+  if (!sel.length) { toast('请先勾选条目'); return; }
+  if (!confirm(`确认删除选中的 ${sel.length} 条？`)) return;
+  items = items.filter(i => !i._sel);
+  saveItems();
+  render();
+  toast(`已删除 ${sel.length} 条`);
+}
+
+function clearDone() {
+  const n = items.filter(i => i.done).length;
+  if (!n) { toast('没有已完成的条目'); return; }
+  items = items.filter(i => !i.done);
+  saveItems();
+  render();
+  toast(`已清除 ${n} 条已完成`);
+}
+
+function toggleAll(cb) {
+  items.forEach(i => i._sel = cb.checked);
+  render();
+}
+
+// ═══════════════════════════════════════════════
+//  DDL 内联编辑
+// ═══════════════════════════════════════════════
+function showDdlInput(id, anchorEl) {
+  // 移除已有的 input
+  document.querySelectorAll('.ddl-input-cell').forEach(el => {
+    const tid = el.dataset.tid;
+    const it = items.find(i => i.id === tid);
+    if (it) { it.ddl = el.value || ''; saveItems(); }
+    el.replaceWith(makeDdlBadge(it));
+  });
+
+  const it = items.find(i => i.id === id);
+  if (!it) return;
+
+  const inp = document.createElement('input');
+  inp.type = 'date';
+  inp.className = currentView === 'kanban' ? 'card-ddl-input' : 'ddl-input-cell';
+  inp.dataset.tid = id;
+  inp.value = it.ddl || '';
+
+  inp.onblur = () => {
+    it.ddl = inp.value || '';
+    saveItems();
+    render();
+  };
+  inp.onkeydown = e => {
+    if (e.key === 'Enter' || e.key === 'Escape') inp.blur();
+  };
+
+  anchorEl.replaceWith(inp);
+  inp.focus();
+  inp.showPicker && inp.showPicker();
+}
+
+function makeDdlBadge(it) {
+  // 用于 DOM 替换，返回 span element（仅在 replaceWith 时用）
+  const st = ddlStatus(it.ddl, it.done);
+  const span = document.createElement('span');
+  span.className = 'ddl-badge' + (st === 'overdue' ? ' overdue' : st === 'soon' ? ' soon' : '');
+  span.textContent = it.ddl ? fmtDate(it.ddl) : '设置日期';
+  span.onclick = () => showDdlInput(it.id, span);
+  return span;
+}
+
+// ═══════════════════════════════════════════════
+//  链接内联编辑
+// ═══════════════════════════════════════════════
+function showUrlInput(id, anchorEl) {
+  const it = items.find(i => i.id === id);
+  if (!it) return;
+
+  const inp = document.createElement('input');
+  inp.type = 'url';
+  inp.className = currentView === 'kanban' ? 'card-ddl-input' : 'ddl-input-cell';
+  inp.style.width = currentView === 'kanban' ? '100%' : '200px';
+  inp.placeholder = 'https://...';
+  inp.value = it.url || '';
+  inp.onmousedown = e => e.stopPropagation();
+
+  let done = false;
+  const commit = () => {
+    if (done) return;
+    done = true;
+    it.url = inp.value.trim();
+    saveItems();
+    render();
+  };
+  inp.onblur = commit;
+  inp.onkeydown = e => {
+    if (e.key === 'Enter' || e.key === 'Escape') inp.blur();
+  };
+
+  anchorEl.replaceWith(inp);
+  inp.focus();
+  inp.select();
+}
+
+// ═══════════════════════════════════════════════
+//  渲染 - 看板
+// ═══════════════════════════════════════════════
+function renderKanban() {
+  const wrap = document.getElementById('kanban-view');
+  wrap.innerHTML = '';
+
+  cats.forEach(cat => {
+    const catItems = items.filter(i => i.catId === cat.id);
+
+    const col = document.createElement('div');
+    col.className = 'kanban-col';
+    col.dataset.catId = cat.id;
+
+    // 列头
+    const hdr = document.createElement('div');
+    hdr.className = 'kanban-col-header';
+    hdr.innerHTML = `
+      <span class="cat-dot" style="background:${escH(cat.color)}"></span>
+      <span class="kanban-col-title" contenteditable="true"
+        onblur="renameCat('${cat.id}',this)"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"
+      >${escH(cat.name)}</span>
+      <span class="kanban-col-count">${catItems.length}</span>
+      <button class="kanban-col-del" onclick="deleteCat('${cat.id}')" title="删除分类">✕</button>
+    `;
+    col.appendChild(hdr);
+
+    // 卡片区
+    const cardsEl = document.createElement('div');
+    cardsEl.className = 'kanban-cards';
+    cardsEl.dataset.catId = cat.id;
+
+    catItems.forEach(it => {
+      cardsEl.appendChild(makeCard(it, cat));
+    });
+
+    // 拖拽放入列
+    cardsEl.addEventListener('dragover', e => {
+      e.preventDefault();
+      cardsEl.classList.add('drag-over-col');
+    });
+    cardsEl.addEventListener('dragleave', e => {
+      if (!cardsEl.contains(e.relatedTarget)) {
+        cardsEl.classList.remove('drag-over-col');
+      }
+    });
+    cardsEl.addEventListener('drop', e => {
+      e.preventDefault();
+      cardsEl.classList.remove('drag-over-col');
+      if (!dragItemId) return;
+      const it = items.find(i => i.id === dragItemId);
+      if (it && it.catId !== cat.id) {
+        it.catId = cat.id;
+        saveItems();
+        render();
+        toast(`已移至「${cat.name}」`);
+      }
+      dragItemId = null;
+    });
+
+    col.appendChild(cardsEl);
+    wrap.appendChild(col);
+  });
+
+  // 未分类
+  const uncatItems = items.filter(i => !cats.find(c => c.id === i.catId));
+  if (uncatItems.length) {
+    const col = document.createElement('div');
+    col.className = 'kanban-col';
+
+    const hdr = document.createElement('div');
+    hdr.className = 'kanban-col-header';
+    hdr.innerHTML = `
+      <span class="cat-dot" style="background:#ccc"></span>
+      <span class="kanban-col-title">未分类</span>
+      <span class="kanban-col-count">${uncatItems.length}</span>
+    `;
+    col.appendChild(hdr);
+
+    const cardsEl = document.createElement('div');
+    cardsEl.className = 'kanban-cards';
+    uncatItems.forEach(it => cardsEl.appendChild(makeCard(it, null)));
+    col.appendChild(cardsEl);
+    wrap.appendChild(col);
+  }
+
+  // ＋ 新增列按钮
+  const addBtn = document.createElement('button');
+  addBtn.className = 'add-col-btn';
+  addBtn.innerHTML = '＋ 新增分类';
+  addBtn.onclick = async () => {
+    const name = await customPrompt('新增分类', '');
+    if (name) addCatDirect(name);
+  };
+  wrap.appendChild(addBtn);
+}
+
+function makeCard(it, cat) {
+  const st = ddlStatus(it.ddl, it.done);
+  const card = document.createElement('div');
+  card.className = 'card' + (it.done ? ' done-card' : '');
+  card.draggable = true;
+  card.dataset.id = it.id;
+
+  // 名称
+  const nameEl = document.createElement('div');
+  nameEl.className = 'card-name';
+  nameEl.contentEditable = 'true';
+  nameEl.textContent = it.name;
+  nameEl.onblur = () => {
+    const v = nameEl.textContent.trim();
+    if (v) { it.name = v; saveItems(); updateStats(); }
+    else nameEl.textContent = it.name;
+  };
+  nameEl.onkeydown = e => {
+    if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); }
+  };
+  // 防止 contenteditable 触发卡片拖拽
+  nameEl.onmousedown = e => e.stopPropagation();
+  card.appendChild(nameEl);
+
+  // 链接（可编辑）
+  const linkRow = document.createElement('div');
+  linkRow.className = 'card-link-row';
+  linkRow.onmousedown = e => e.stopPropagation(); // 不触发卡片拖拽
+  if (it.url) {
+    const a = document.createElement('a');
+    a.className = 'card-link';
+    a.href = it.url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.innerHTML = `🔗 ${escH(shortUrl(it.url))}`;
+    a.title = it.url;
+    const edit = document.createElement('button');
+    edit.className = 'card-link-edit';
+    edit.textContent = '✎';
+    edit.title = '编辑链接';
+    edit.onclick = e => { e.preventDefault(); showUrlInput(it.id, linkRow); };
+    linkRow.appendChild(a);
+    linkRow.appendChild(edit);
+  } else {
+    const add = document.createElement('span');
+    add.className = 'card-link-add';
+    add.textContent = '+ 链接';
+    add.onclick = () => showUrlInput(it.id, linkRow);
+    linkRow.appendChild(add);
+  }
+  card.appendChild(linkRow);
+
+  // 子任务（展开，可单独勾选）
+  const subs = it.subtasks || [];
+  if (subs.length) {
+    const subWrap = document.createElement('div');
+    subWrap.className = 'card-subs';
+    subWrap.onmousedown = e => e.stopPropagation(); // 不触发卡片拖拽
+    subs.forEach(s => {
+      const row = document.createElement('label');
+      row.className = 'card-sub' + (s.done ? ' done' : '');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = s.done;
+      cb.onclick = e => e.stopPropagation();
+      cb.onchange = () => { s.done = cb.checked; saveItems(); render(); };
+      const txt = document.createElement('span');
+      txt.className = 'card-sub-text';
+      txt.textContent = s.text;
+      row.appendChild(cb);
+      row.appendChild(txt);
+      subWrap.appendChild(row);
+    });
+    card.appendChild(subWrap);
+  }
+
+  // 添加子任务入口
+  const subAdd = document.createElement('div');
+  subAdd.className = 'card-sub-add';
+  subAdd.textContent = subs.length ? '＋ 子任务' : '＋ 添加子任务';
+  subAdd.onmousedown = e => e.stopPropagation();
+  subAdd.onclick = e => { e.stopPropagation(); openTaskModal(it.id); };
+  card.appendChild(subAdd);
+
+  // 底部
+  const footer = document.createElement('div');
+  footer.className = 'card-footer';
+
+  // DDL badge
+  const ddlSt = ddlStatus(it.ddl, it.done);
+  const ddlEl = document.createElement('span');
+  ddlEl.className = 'card-ddl' +
+    (ddlSt === 'overdue' ? ' overdue' : ddlSt === 'soon' ? ' soon' : '');
+  ddlEl.textContent = it.ddl ? fmtDate(it.ddl) : '+ 日期';
+  ddlEl.onclick = () => showDdlInput(it.id, ddlEl);
+  footer.appendChild(ddlEl);
+
+  // 操作按钮
+  const acts = document.createElement('div');
+  acts.className = 'card-actions';
+
+  const doneBtn = document.createElement('button');
+  doneBtn.className = 'card-btn check' + (it.done ? ' checked' : '');
+  doneBtn.title = it.done ? '标记未完成' : '标记完成';
+  doneBtn.textContent = it.done ? '↩' : '✓';
+  doneBtn.onclick = () => toggleDone(it.id);
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'card-btn del';
+  delBtn.title = '删除';
+  delBtn.textContent = '✕';
+  delBtn.onclick = () => deleteItem(it.id);
+
+  acts.appendChild(doneBtn);
+  acts.appendChild(delBtn);
+  footer.appendChild(acts);
+  card.appendChild(footer);
+
+  // 拖拽
+  card.addEventListener('dragstart', e => {
+    dragItemId = it.id;
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  card.addEventListener('dragend', () => {
+    card.classList.remove('dragging');
+  });
+
+  // 点击卡片空白处 → 打开子任务弹窗
+  card.addEventListener('click', e => {
+    if (e.target.closest('a, button, input, .card-name, .card-ddl, .card-link-row, .card-actions, .card-sub-chip')) return;
+    openTaskModal(it.id);
+  });
+
+  return card;
+}
+
+// ═══════════════════════════════════════════════
+//  渲染 - 列表
+// ═══════════════════════════════════════════════
+function renderList() {
+  const tbody = document.getElementById('todo-body');
+
+  if (!items.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="8">还没有待办事项 ✨</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = items.map((it, idx) => {
+    const cat = getCat(it.catId);
+    const st  = ddlStatus(it.ddl, it.done);
+
+    const ddlHtml = it.ddl
+      ? `<span class="ddl-badge ${st==='overdue'?'overdue':st==='soon'?'soon':''}"
+             onclick="showDdlInput('${it.id}',this)">${fmtDate(it.ddl)}</span>`
+      : `<span class="ddl-badge" onclick="showDdlInput('${it.id}',this)" style="color:var(--text3)">+ 日期</span>`;
+
+    const catHtml = cat
+      ? `<span class="cat-badge"><span class="cat-dot" style="background:${escH(cat.color)};width:7px;height:7px;border-radius:50%;display:inline-block"></span>${escH(cat.name)}</span>`
+      : `<span style="color:var(--text3);font-size:11px">—</span>`;
+
+    const stLabel = {done:'已完成',overdue:'已逾期',soon:'即将到期',ok:'进行中',none:'进行中'}[st];
+
+    const linkHtml = it.url
+      ? `<span class="link-cell"><a class="link-a" href="${escH(it.url)}" target="_blank" rel="noopener" title="${escH(it.url)}">🔗 ${escH(shortUrl(it.url))}</a><button class="row-linkedit" onclick="showUrlInput('${it.id}', this.closest('.link-cell'))" title="编辑链接">✎</button></span>`
+      : `<span class="link-cell"><span class="row-linkadd" onclick="showUrlInput('${it.id}', this.closest('.link-cell'))">+ 链接</span></span>`;
+
+    const subs = it.subtasks || [];
+    const subDone = subs.filter(s => s.done).length;
+    const subChip = subs.length
+      ? `<span class="sub-count ${subDone===subs.length?'all-done':''}" onclick="openTaskModal('${it.id}')" title="子任务">☑ ${subDone}/${subs.length}</span>`
+      : '';
+
+    return `<tr data-id="${it.id}" class="${it.done?'done-row':''} ${it._sel?'selected':''}">
+      <td><input type="checkbox" ${it._sel?'checked':''} onchange="selItem('${it.id}',this)"></td>
+      <td style="color:var(--text3);font-size:11px">${idx+1}</td>
+      <td>
+        <span class="editable name-span" contenteditable="true"
+          onblur="editName('${it.id}',this)"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"
+        >${escH(it.name)}</span>${subChip}
+      </td>
+      <td>${linkHtml}</td>
+      <td>${ddlHtml}</td>
+      <td>${catHtml}</td>
+      <td><span class="status-dot ${st==='done'?'done':st==='overdue'?'overdue':st==='soon'?'soon':''}">${stLabel}</span></td>
+      <td style="white-space:nowrap">
+        <button class="row-sub" onclick="openTaskModal('${it.id}')" title="子任务">☑</button>
+        <button class="row-del" onclick="deleteItem('${it.id}')">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function editName(id, el) {
+  const it = items.find(i => i.id === id);
+  if (!it) return;
+  const v = el.textContent.trim();
+  if (v) { it.name = v; saveItems(); updateStats(); }
+  else el.textContent = it.name;
+}
+
+function selItem(id, cb) {
+  const it = items.find(i => i.id === id);
+  if (it) it._sel = cb.checked;
+}
+
+// 点击行切换完成（列表视图）
+document.addEventListener('click', e => {
+  if (currentView !== 'list') return;
+  const row = e.target.closest('tr[data-id]');
+  if (!row) return;
+  if (e.target.matches('input,a,button,.editable,.row-del,.ddl-badge,.ddl-input-cell,.row-linkadd,.row-linkedit,.link-cell,.sub-count,.row-sub')) return;
+  const id = row.dataset.id;
+  toggleDone(id);
+});
+
+// ═══════════════════════════════════════════════
+//  渲染 - 日程（按截止日期聚合）
+// ═══════════════════════════════════════════════
+const WEEKDAYS = ['周日','周一','周二','周三','周四','周五','周六'];
+
+function parseISO(s) {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+function isoDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+function nextMonday(from) {
+  const d = new Date(from);
+  do { d.setDate(d.getDate() + 1); } while (d.getDay() !== 1);
+  return d;
+}
+
+// 未完成在上、已完成在下
+function sortForColumn(list) {
+  return list.slice().sort((a, b) => (a.done - b.done));
+}
+
+function makeTimelineCol({ cls, wd, dateLabel, relLabel, dateIso, colItems }) {
+  const col = document.createElement('div');
+  col.className = 'tl-col' + (cls ? ' ' + cls : '');
+  if (dateIso) col.dataset.dateIso = dateIso;
+
+  const hdr = document.createElement('div');
+  hdr.className = 'tl-col-header';
+  hdr.innerHTML =
+    `<div class="tl-hd-row">` +
+      `<span class="tl-wd">${escH(wd)}</span>` +
+      (relLabel ? `<span class="tl-rel">${escH(relLabel)}</span>` : '') +
+      `<span class="tl-count">${colItems.length}</span>` +
+    `</div>` +
+    (dateLabel ? `<div class="tl-date">${escH(dateLabel)}</div>` : '');
+  col.appendChild(hdr);
+
+  const cardsEl = document.createElement('div');
+  cardsEl.className = 'tl-cards';
+  if (colItems.length) {
+    sortForColumn(colItems).forEach(it => {
+      const cat = getCat(it.catId);
+      const card = makeCard(it, cat);
+      if (cat) card.style.borderLeft = `3px solid ${cat.color}`;
+      cardsEl.appendChild(card);
+    });
+  } else {
+    const empty = document.createElement('div');
+    empty.className = 'tl-empty';
+    empty.textContent = '—';
+    cardsEl.appendChild(empty);
+  }
+
+  // 拖入以改期（仅具体日期列）
+  if (dateIso) {
+    cardsEl.addEventListener('dragover', e => {
+      e.preventDefault();
+      cardsEl.classList.add('drag-over-col');
+    });
+    cardsEl.addEventListener('dragleave', e => {
+      if (!cardsEl.contains(e.relatedTarget)) cardsEl.classList.remove('drag-over-col');
+    });
+    cardsEl.addEventListener('drop', e => {
+      e.preventDefault();
+      cardsEl.classList.remove('drag-over-col');
+      if (!dragItemId) return;
+      const it = items.find(i => i.id === dragItemId);
+      if (it && it.ddl !== dateIso) {
+        it.ddl = dateIso;
+        saveItems();
+        render();
+        toast(`已改期至 ${fmtDDL(dateIso)}`);
+      }
+      dragItemId = null;
+    });
+  }
+
+  col.appendChild(cardsEl);
+  return col;
+}
+
+function renderTimeline() {
+  const wrap = document.getElementById('timeline-view');
+  wrap.innerHTML = '';
+
+  const t = today();
+  const start = parseISO(t);
+  const end = new Date(start);
+  end.setMonth(end.getMonth() + 2); // 展示到两个月后
+  const endIso = isoDate(end);
+
+  // 逾期列（截止日期早于今天且未在范围内）
+  const overdueItems = items.filter(i => i.ddl && i.ddl < t);
+  if (overdueItems.length) {
+    wrap.appendChild(makeTimelineCol({
+      cls: 'tl-overdue', wd: '逾期', relLabel: '待处理',
+      dateIso: null, colItems: overdueItems,
+    }));
+  }
+
+  // 今天 → 两个月后 的连续日期列（周末灰色）
+  const cur = new Date(start);
+  while (isoDate(cur) <= endIso) {
+    const dIso = isoDate(cur);
+    const dow = cur.getDay(); // 0=日 6=六
+    const isWeekend = dow === 0 || dow === 6;
+    const colItems = items.filter(i => i.ddl === dIso);
+    const rel = fmtDDL(dIso); // 今天/明天/…
+    const relLabel = (rel === '今天' || rel === '明天') ? rel : '';
+    const dateLabel = fmtDate(dIso); // 年月日
+
+    let cls = '';
+    if (isWeekend) cls += ' tl-weekend';
+    if (dIso === t) cls += ' tl-today';
+
+    wrap.appendChild(makeTimelineCol({
+      cls: cls.trim(),
+      wd: WEEKDAYS[dow],
+      dateLabel,
+      relLabel,
+      dateIso: dIso,
+      colItems,
+    }));
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  // 更晚（两个月之后）
+  const laterItems = items.filter(i => i.ddl && i.ddl > endIso);
+  if (laterItems.length) {
+    wrap.appendChild(makeTimelineCol({
+      cls: 'tl-nodate', wd: '更晚', relLabel: '以后',
+      dateIso: null, colItems: laterItems,
+    }));
+  }
+
+  // 无日期
+  const noDateItems = items.filter(i => !i.ddl);
+  if (noDateItems.length) {
+    wrap.appendChild(makeTimelineCol({
+      cls: 'tl-nodate', wd: '无日期',
+      dateIso: null, colItems: noDateItems,
+    }));
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  渲染 - 发起人（名称前缀，如 cxl-xx → cxl），按截止日期排列
+// ═══════════════════════════════════════════════
+// 取任务名中第一个「-」之前的部分作为发起人
+function getInitiator(name) {
+  const m = String(name || '').match(/^\s*([^\-－]+?)\s*[\-－]/);
+  return m ? m[1].trim() : '';
+}
+
+// 由字符串生成稳定颜色（发起人色点）
+function strColor(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  const palette = ['#8ab09a','#7a9ab0','#b8a98a','#a89ab0','#b09a8a','#9ab0a8','#b0a87a','#a8b09a','#c0735a','#b8924a'];
+  return palette[h % palette.length];
+}
+
+function renderInitiator() {
+  const wrap = document.getElementById('initiator-view');
+  wrap.innerHTML = '';
+
+  // 分组
+  const groups = new Map();
+  items.forEach(it => {
+    const key = getInitiator(it.name) || '__none__';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(it);
+  });
+
+  if (!groups.size) {
+    wrap.innerHTML = '<div style="color:var(--text3);padding:40px;font-size:13px">还没有任务</div>';
+    return;
+  }
+
+  // 列排序：发起人按名称，未指定放最后
+  const keys = [...groups.keys()].sort((a, b) => {
+    if (a === '__none__') return 1;
+    if (b === '__none__') return -1;
+    return a.localeCompare(b, 'zh');
+  });
+
+  // 列内排序：未完成在上，再按截止日期升序（无日期视为最晚）
+  const cmp = (a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    const da = a.ddl || '9999-99-99';
+    const db = b.ddl || '9999-99-99';
+    return da < db ? -1 : da > db ? 1 : 0;
+  };
+
+  keys.forEach(key => {
+    const list = groups.get(key).slice().sort(cmp);
+    const label = key === '__none__' ? '未指定' : key;
+
+    const col = document.createElement('div');
+    col.className = 'kanban-col';
+
+    const hdr = document.createElement('div');
+    hdr.className = 'kanban-col-header';
+    hdr.innerHTML =
+      `<span class="cat-dot" style="background:${key === '__none__' ? '#ccc' : strColor(label)}"></span>` +
+      `<span class="kanban-col-title" style="cursor:default">${escH(label)}</span>` +
+      `<span class="kanban-col-count">${list.length}</span>`;
+    col.appendChild(hdr);
+
+    const cardsEl = document.createElement('div');
+    cardsEl.className = 'kanban-cards';
+    list.forEach(it => {
+      const cat = getCat(it.catId);
+      const card = makeCard(it, cat);
+      if (cat) card.style.borderLeft = `3px solid ${cat.color}`;
+      cardsEl.appendChild(card);
+    });
+    col.appendChild(cardsEl);
+    wrap.appendChild(col);
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  主渲染
+// ═══════════════════════════════════════════════
+function render() {
+  renderCatSelect();
+  updateStats();
+  if (currentView === 'kanban') {
+    renderKanban();
+  } else if (currentView === 'timeline') {
+    renderTimeline();
+  } else if (currentView === 'initiator') {
+    renderInitiator();
+  } else {
+    renderList();
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  视图切换
+// ═══════════════════════════════════════════════
+function switchView(v) {
+  currentView = v;
+  document.getElementById('kanban-view').style.display    = v === 'kanban'    ? 'flex'  : 'none';
+  document.getElementById('list-view').style.display      = v === 'list'      ? 'block' : 'none';
+  document.getElementById('timeline-view').style.display  = v === 'timeline'  ? 'flex'  : 'none';
+  document.getElementById('initiator-view').style.display = v === 'initiator' ? 'flex'  : 'none';
+  document.getElementById('tab-kanban').classList.toggle('active',    v === 'kanban');
+  document.getElementById('tab-list').classList.toggle('active',      v === 'list');
+  document.getElementById('tab-timeline').classList.toggle('active',  v === 'timeline');
+  document.getElementById('tab-initiator').classList.toggle('active', v === 'initiator');
+  render();
+}
+
+// ═══════════════════════════════════════════════
+//  分类 CRUD
+// ═══════════════════════════════════════════════
+function addCatDirect(name, color) {
+  color = color || randomColor();
+  const cat = { id: uid(), name, color };
+  cats.push(cat);
+  saveCats();
+  render();
+  return cat;
+}
+
+function renameCat(id, el) {
+  const cat = cats.find(c => c.id === id);
+  if (!cat) return;
+  const v = el.textContent.trim();
+  if (v) { cat.name = v; saveCats(); renderCatSelect(); updateStats(); }
+  else el.textContent = cat.name;
+}
+
+function deleteCat(id) {
+  if (!confirm('删除该分类？该分类下的事项将变为未分类。')) return;
+  cats = cats.filter(c => c.id !== id);
+  saveCats();
+  render();
+  toast('已删除分类');
+}
+
+function randomColor() {
+  const palette = ['#8ab09a','#7a9ab0','#b8a98a','#a89ab0','#b09a8a','#9ab0a8','#b0a87a','#a8b09a'];
+  return palette[Math.floor(Math.random() * palette.length)];
+}
+
+// ── 分类管理弹窗 ──────────────────────────────
+function openCatModal() {
+  renderCatList();
+  if (window._resetCatModalPos) window._resetCatModalPos();
+  document.getElementById('cat-modal').classList.add('show');
+}
+function closeCatModal() {
+  document.getElementById('cat-modal').classList.remove('show');
+  render();
+}
+function closeCatModalBg(e) {
+  if (e.target === document.getElementById('cat-modal')) closeCatModal();
+}
+
+function renderCatList() {
+  const el = document.getElementById('cat-list');
+  el.innerHTML = '';
+  cats.forEach(cat => {
+    const row = document.createElement('div');
+    row.className = 'cat-item';
+
+    // 颜色选择
+    const colorWrap = document.createElement('div');
+    colorWrap.style.cssText = 'position:relative;width:22px;height:22px;flex-shrink:0';
+
+    const dot = document.createElement('div');
+    dot.className = 'cat-color-dot';
+    dot.style.background = cat.color;
+    dot.title = '点击更改颜色';
+
+    const colorInp = document.createElement('input');
+    colorInp.type = 'color';
+    colorInp.value = cat.color;
+    colorInp.style.cssText = 'position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;border:none;padding:0';
+    colorInp.oninput = () => {
+      cat.color = colorInp.value;
+      dot.style.background = cat.color;
+    };
+    colorInp.onchange = () => { saveCats(); };
+
+    colorWrap.appendChild(dot);
+    colorWrap.appendChild(colorInp);
+
+    // 名称输入
+    const nameInp = document.createElement('input');
+    nameInp.type = 'text';
+    nameInp.className = 'cat-name-inp';
+    nameInp.value = cat.name;
+    nameInp.onblur = () => {
+      const v = nameInp.value.trim();
+      if (v) { cat.name = v; saveCats(); }
+      else nameInp.value = cat.name;
+    };
+    nameInp.onkeydown = e => { if (e.key === 'Enter') nameInp.blur(); };
+
+    // 删除按钮
+    const delBtn = document.createElement('button');
+    delBtn.className = 'cat-item-del';
+    delBtn.textContent = '✕';
+    delBtn.onclick = () => {
+      if (!confirm('删除该分类？')) return;
+      cats = cats.filter(c => c.id !== cat.id);
+      saveCats();
+      renderCatList();
+    };
+
+    row.appendChild(colorWrap);
+    row.appendChild(nameInp);
+    row.appendChild(delBtn);
+    el.appendChild(row);
+  });
+}
+
+function addCat() {
+  const inp = document.getElementById('new-cat-name');
+  const name = inp.value.trim();
+  if (!name) { toast('请输入分类名称'); return; }
+  cats.push({ id: uid(), name, color: randomColor() });
+  saveCats();
+  inp.value = '';
+  renderCatList();
+  toast('已添加分类 ✓');
+}
+
+// ═══════════════════════════════════════════════
+//  拖入 Tab / 粘贴
+// ═══════════════════════════════════════════════
+let _dragEnter = 0;
+const overlay = document.getElementById('drop-overlay');
+
+document.addEventListener('dragenter', e => {
+  if (dragItemId !== null) return; // 内部拖拽
+  if (e.dataTransfer.types.includes('text/uri-list') ||
+      e.dataTransfer.types.includes('text/plain')) {
+    _dragEnter++;
+    overlay.classList.add('show');
+  }
+});
+document.addEventListener('dragleave', e => {
+  if (dragItemId !== null) return;
+  _dragEnter = Math.max(0, _dragEnter - 1);
+  if (_dragEnter === 0) overlay.classList.remove('show');
+});
+document.addEventListener('dragover', e => {
+  if (dragItemId === null) e.preventDefault();
+});
+document.addEventListener('drop', e => {
+  overlay.classList.remove('show');
+  _dragEnter = 0;
+  if (dragItemId !== null) return;
+  e.preventDefault();
+
+  const url = e.dataTransfer.getData('text/uri-list') ||
+              (() => { const t = e.dataTransfer.getData('text/plain'); return t.startsWith('http') ? t : ''; })();
+  const html = e.dataTransfer.getData('text/html');
+  let name = '';
+  if (html) {
+    const d = document.createElement('div');
+    d.innerHTML = html;
+    name = (d.querySelector('a')?.textContent || d.textContent || '').trim().slice(0,80);
+  }
+  if (url) addItem(name, url, today(), document.getElementById('inp-cat').value);
+});
+
+document.addEventListener('paste', e => {
+  const ae = document.activeElement;
+  const inInput = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable);
+
+  // 任务弹窗打开时：粘贴内容作为子任务（除非焦点在输入框内）
+  if (currentTaskId) {
+    if (inInput) return; // 让输入框正常粘贴
+    const txt = (e.clipboardData.getData('text/plain') || '').trim();
+    if (txt) { e.preventDefault(); addSubtasks(currentTaskId, txt); }
+    return;
+  }
+
+  if (inInput) return;
+  const text = e.clipboardData.getData('text/plain').trim();
+  const html = e.clipboardData.getData('text/html');
+  let name = '', url = '';
+
+  if (text.startsWith('http')) { url = text; }
+  else { name = text.slice(0,80); }
+
+  if (html && !name) {
+    const d = document.createElement('div');
+    d.innerHTML = html;
+    name = (d.querySelector('a')?.textContent || '').trim().slice(0,80);
+    if (!url) url = d.querySelector('a')?.href || '';
+  }
+
+  if (name || url) {
+    e.preventDefault();
+    addItem(name, url, today(), document.getElementById('inp-cat').value);
+    toast('已从剪贴板添加 ✓');
+  }
+});
+
+// ═══════════════════════════════════════════════
+//  回车快捷添加
+// ═══════════════════════════════════════════════
+['inp-name','inp-url','inp-ddl'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') addItem();
+  });
+});
+
+// ═══════════════════════════════════════════════
+//  分类弹窗拖动
+// ═══════════════════════════════════════════════
+(function makeModalDraggable() {
+  const handle = document.getElementById('cat-modal-handle');
+  const box    = document.getElementById('cat-modal-box');
+  let dx = 0, dy = 0, sx = 0, sy = 0, dragging = false;
+
+  handle.addEventListener('mousedown', e => {
+    dragging = true;
+    sx = e.clientX - dx;
+    sy = e.clientY - dy;
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    dx = e.clientX - sx;
+    dy = e.clientY - sy;
+    box.style.transform = `translate(${dx}px, ${dy}px)`;
+  });
+  document.addEventListener('mouseup', () => {
+    dragging = false;
+    document.body.style.userSelect = '';
+  });
+
+  // 每次打开时重置位置
+  window._resetCatModalPos = () => { dx = dy = 0; box.style.transform = ''; };
+})();
+
+// ═══════════════════════════════════════════════
+//  初始化 - DDL 默认今天
+// ═══════════════════════════════════════════════
+document.getElementById('inp-ddl').value = today();
+
+// 子任务输入框：粘贴多行文本时按行拆分添加
+document.getElementById('new-subtask').addEventListener('paste', e => {
+  const txt = (e.clipboardData.getData('text/plain') || '');
+  if (/[\r\n;；]/.test(txt) && currentTaskId) {
+    e.preventDefault();
+    addSubtasks(currentTaskId, txt);
+    e.target.value = '';
+  }
+});
+
+// 默认打开「日程」视图
+switchView('timeline');
+</script>
+</body>
+</html>
