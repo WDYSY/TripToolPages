@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>URL 正则生成器</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 1.5rem;
+    margin-bottom: 6px;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: #64748b;
+    font-size: 0.85rem;
+    margin-bottom: 24px;
+  }
+
+  .card {
+    background: #1e2130;
+    border: 1px solid #2d3148;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #60a5fa;
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+
+  input[type="text"] {
+    width: 100%;
+    background: #0f1117;
+    border: 1px solid #2d3148;
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: #e2e8f0;
+    font-size: 0.9rem;
+    font-family: 'Courier New', monospace;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input[type="text"]:focus { border-color: #60a5fa; }
+
+  .url-segments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 14px;
+    align-items: center;
+  }
+
+  .seg { display: inline-flex; align-items: center; gap: 2px; }
+
+  .seg-separator {
+    color: #475569;
+    font-size: 0.85rem;
+    font-family: monospace;
+    user-select: none;
+  }
+
+  .seg-btn {
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1.5px solid #2d3148;
+    background: #252840;
+    color: #94a3b8;
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    white-space: nowrap;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .seg-btn:hover { border-color: #60a5fa; color: #e2e8f0; background: #2d3a5e; }
+
+  .seg-btn.selected {
+    border-color: #a78bfa;
+    background: #2d2450;
+    color: #c4b5fd;
+  }
+
+  .seg-btn.selected::after {
+    content: attr(data-order);
+    position: absolute;
+    top: -7px; right: -5px;
+    background: #a78bfa;
+    color: #1e1b4b;
+    border-radius: 50%;
+    width: 16px; height: 16px;
+    font-size: 10px; font-weight: bold;
+    display: flex; align-items: center; justify-content: center;
+    font-family: system-ui;
+  }
+
+  .params-area {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .param-item { display: flex; align-items: center; gap: 3px; }
+
+  .param-key { color: #475569; font-family: monospace; font-size: 0.82rem; }
+
+  .param-value-btn {
+    padding: 3px 8px;
+    border-radius: 5px;
+    border: 1.5px solid #2d3148;
+    background: #1a2535;
+    color: #7dd3fc;
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+
+  .param-value-btn:hover { border-color: #38bdf8; background: #1e3a4a; }
+
+  .param-value-btn.selected {
+    border-color: #a78bfa;
+    background: #2d2450;
+    color: #c4b5fd;
+  }
+
+  .param-value-btn.selected::after {
+    content: attr(data-order);
+    position: absolute;
+    top: -7px; right: -5px;
+    background: #a78bfa;
+    color: #1e1b4b;
+    border-radius: 50%;
+    width: 16px; height: 16px;
+    font-size: 10px; font-weight: bold;
+    display: flex; align-items: center; justify-content: center;
+    font-family: system-ui;
+  }
+
+  .selected-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+
+  .selected-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: #0f1117;
+    border-radius: 8px;
+    padding: 8px 12px;
+    border: 1px solid #2d3148;
+  }
+
+  .order-badge {
+    background: #a78bfa;
+    color: #1e1b4b;
+    border-radius: 50%;
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: bold;
+    flex-shrink: 0; margin-top: 2px;
+  }
+
+  .selected-item-content { flex: 1; min-width: 0; }
+
+  .selected-item-label { font-size: 0.78rem; color: #64748b; margin-bottom: 3px; }
+
+  .selected-item-value {
+    font-family: monospace;
+    font-size: 0.88rem;
+    color: #c4b5fd;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 6px;
+  }
+
+  .slice-options {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .slice-label { font-size: 0.75rem; color: #64748b; }
+
+  .slice-toggle { display: flex; gap: 4px; }
+
+  .slice-opt {
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid #2d3148;
+    background: #1a1f2e;
+    color: #64748b;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .slice-opt.active { border-color: #60a5fa; background: #1e3a5f; color: #93c5fd; }
+
+  .slice-input-wrap { display: flex; align-items: center; gap: 4px; }
+
+  .slice-input {
+    width: 50px !important;
+    padding: 2px 6px !important;
+    font-size: 0.78rem !important;
+    text-align: center;
+  }
+
+  .remove-btn {
+    background: none;
+    border: none;
+    color: #475569;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .remove-btn:hover { color: #f87171; background: #2d1515; }
+
+  /* ── 推荐模板区域 ── */
+  .tpl-section-title {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .tpl-section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #2d3148;
+  }
+
+  .recommended-tpls {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .tpl-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #0f1117;
+    border: 1px solid #2d3148;
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: all 0.18s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .tpl-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--accent, #60a5fa);
+    border-radius: 3px 0 0 3px;
+  }
+
+  .tpl-card:hover {
+    border-color: var(--accent, #60a5fa);
+    background: #161b2e;
+    transform: translateX(2px);
+  }
+
+  .tpl-card.applied {
+    border-color: #34d399;
+    background: #0d2218;
+  }
+
+  .tpl-card.applied::before { background: #34d399; }
+
+  .tpl-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+  .tpl-info { flex: 1; min-width: 0; }
+
+  .tpl-name {
+    font-size: 0.82rem;
+    color: #94a3b8;
+    margin-bottom: 3px;
+    font-weight: 500;
+  }
+
+  .tpl-preview {
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    color: #fbbf24;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tpl-result {
+    font-size: 0.75rem;
+    color: #34d399;
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+  }
+
+  .tpl-use-btn {
+    background: #1e2a4a;
+    border: 1px solid #3b4f7a;
+    border-radius: 6px;
+    color: #60a5fa;
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .tpl-use-btn:hover { background: #2d3f6a; border-color: #60a5fa; }
+
+  .tpl-card.applied .tpl-use-btn {
+    background: #0d2218;
+    border-color: #34d399;
+    color: #34d399;
+  }
+
+  /* 自定义变量提示 */
+  .template-wrap { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  .var-chips {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    align-items: center;
+  }
+
+  .var-chip-label { font-size: 0.75rem; color: #64748b; }
+
+  .hint-chip {
+    padding: 3px 9px;
+    border-radius: 5px;
+    background: #252840;
+    border: 1px solid #2d3148;
+    font-family: monospace;
+    font-size: 0.78rem;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .hint-chip:hover { border-color: #a78bfa; color: #c4b5fd; background: #2d2450; }
+
+  .hint-chip-var { color: #a78bfa; font-weight: bold; }
+  .hint-chip-val { color: #64748b; }
+
+  /* 输出 */
+  .output-box {
+    background: #0a0d14;
+    border: 1px solid #2d3148;
+    border-radius: 8px;
+    padding: 14px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    line-height: 1.8;
+    position: relative;
+  }
+
+  .output-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .output-row:last-child { margin-bottom: 0; }
+
+  .output-key {
+    color: #475569;
+    font-size: 0.75rem;
+    min-width: 70px;
+    padding-top: 2px;
+    font-family: system-ui;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+
+  .output-val { color: #86efac; word-break: break-all; flex: 1; }
+  .output-val.replace-val { color: #fbbf24; }
+
+  .copy-btn {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: #252840;
+    border: 1px solid #2d3148;
+    border-radius: 6px;
+    color: #64748b;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: system-ui;
+  }
+
+  .copy-btn:hover { border-color: #60a5fa; color: #60a5fa; }
+
+  .divider { height: 1px; background: #2d3148; margin: 10px 0; }
+
+  .empty-hint { color: #475569; font-size: 0.85rem; text-align: center; padding: 12px; }
+
+  .steps {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #2d3148;
+  }
+
+  .step {
+    flex: 1;
+    text-align: center;
+    padding: 8px;
+    font-size: 0.78rem;
+    color: #475569;
+    background: #1a1f2e;
+    border-right: 1px solid #2d3148;
+    transition: all 0.3s;
+  }
+
+  .step:last-child { border-right: none; }
+  .step.active { background: #1e2a4a; color: #60a5fa; }
+  .step-num { display: block; font-size: 1.1rem; margin-bottom: 2px; }
+
+  .no-selected { color: #334155; font-size: 0.85rem; padding: 8px 0; }
+
+  .tag-full { color: #34d399; }
+  .tag-prefix { color: #fbbf24; }
+
+  .no-tpl-hint {
+    color: #334155;
+    font-size: 0.82rem;
+    text-align: center;
+    padding: 10px;
+    border: 1px dashed #2d3148;
+    border-radius: 8px;
+  }
+
+  @media (max-width: 600px) {
+    body { padding: 12px; }
+    .seg-btn { max-width: 120px; font-size: 0.75rem; }
+    .tpl-result { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<h1>🔗 URL 正则生成器</h1>
+<p class="subtitle">输入 URL → 点选片段 → 选择推荐模板 → 一键复制</p>
+
+<div class="steps">
+  <div class="step active" id="step1"><span class="step-num">①</span>输入 URL</div>
+  <div class="step" id="step2"><span class="step-num">②</span>点选片段</div>
+  <div class="step" id="step3"><span class="step-num">③</span>选择模板</div>
+  <div class="step" id="step4"><span class="step-num">④</span>复制结果</div>
+</div>
+
+<!-- Step 1 -->
+<div class="card">
+  <div class="card-title">① 输入 URL</div>
+  <input type="text" id="urlInput" placeholder="https://example.com/path?key=value" />
+  <div class="url-segments" id="segmentsArea">
+    <span class="empty-hint">请输入 URL 后点击各部分进行选择 ↑</span>
+  </div>
+</div>
+
+<!-- Step 2 -->
+<div class="card">
+  <div class="card-title">② 已选提取片段</div>
+  <div class="selected-list" id="selectedList">
+    <div class="no-selected">尚未选择任何片段</div>
+  </div>
+</div>
+
+<!-- Step 3 -->
+<div class="card">
+  <div class="card-title">③ 替换模板（输出格式）</div>
+
+  <!-- 推荐模板 -->
+  <div class="tpl-section-title">推荐模板</div>
+  <div class="recommended-tpls" id="recommendedTpls">
+    <div class="no-tpl-hint">请先选择要提取的片段，系统将自动推荐模板</div>
+  </div>
+
+  <!-- 自定义输入 -->
+  <div class="tpl-section-title">自定义模板</div>
+  <div class="template-wrap">
+    <input type="text" id="templateInput" placeholder="例如：vbk-fat$1-$2-$3" style="flex:1;min-width:200px" />
+  </div>
+  <div class="var-chips" id="varChips"></div>
+</div>
+
+<!-- Step 4 -->
+<div class="card">
+  <div class="card-title">④ 生成结果</div>
+  <div class="output-box" id="outputBox">
+    <div class="empty-hint">完成以上步骤后自动生成</div>
+  </div>
+</div>
+
+<script>
+// ─── 状态 ───────────────────────────────────────────────
+const state = {
+  rawUrl: '',
+  parsed: null,
+  selected: [],   // [{ id, value, label, sliceMode, sliceN, customRegex }]
+  template: '',
+  appliedTplIndex: -1,
+};
+
+// ─── 解析 URL ────────────────────────────────────────────
+function parseUrl(url) {
+  try {
+    const u = new URL(url);
+    const hostParts = u.hostname.split('.');
+    const pathSegs = u.pathname.split('/').filter(s => s.length > 0);
+    const params = [];
+    u.searchParams.forEach((v, k) => params.push({ key: k, value: v }));
+    return { protocol: u.protocol, host: u.hostname, hostParts, pathSegs, params };
+  } catch { return null; }
+}
+
+// ─── 推荐模板生成 ────────────────────────────────────────
+function generateRecommendedTemplates() {
+  const sel = state.selected;
+  if (sel.length === 0) return [];
+
+  const vars = sel.map((s, i) => `$${i + 1}`);
+  const previews = sel.map(s => getExtractedValue(s));
+
+  // 分析片段类型
+  const types = sel.map(s => {
+    if (s.id.startsWith('host_')) return 'host';
+    if (s.id.startsWith('path_')) return 'path';
+    if (s.id.startsWith('param_')) return 'param';
+    return 'other';
+  });
+
+  const templates = [];
+
+  // ── 模板1：连字符拼接（最通用）
+  templates.push({
+    icon: '🔗',
+    name: '连字符拼接',
+    desc: '用 - 连接所有提取值',
+    pattern: vars.join('-'),
+    accent: '#60a5fa',
+  });
+
+  // ── 模板2：下划线拼接
+  templates.push({
+    icon: '🔤',
+    name: '下划线拼接',
+    desc: '用 _ 连接所有提取值',
+    pattern: vars.join('_'),
+    accent: '#a78bfa',
+  });
+
+  // ── 模板3：点号拼接
+  templates.push({
+    icon: '📌',
+    name: '点号拼接',
+    desc: '用 . 连接所有提取值',
+    pattern: vars.join('.'),
+    accent: '#f59e0b',
+  });
+
+  // ── 模板4：路径格式
+  templates.push({
+    icon: '📂',
+    name: '路径格式',
+    desc: '用 / 连接，形如路径',
+    pattern: vars.join('/'),
+    accent: '#34d399',
+  });
+
+  // ── 模板5：键值对格式（若有参数类型）
+  const paramItems = sel.filter((s, i) => types[i] === 'param');
+  if (paramItems.length > 0) {
+    const p = state.parsed;
+    const kvParts = sel.map((s, i) => {
+      if (types[i] === 'param') {
+        const paramIdx = parseInt(s.id.split('_')[1]);
+        const key = p.params[paramIdx]?.key || 'key';
+        return `${key}=${vars[i]}`;
+      }
+      return vars[i];
+    });
+    templates.push({
+      icon: '🗝️',
+      name: '键值对格式',
+      desc: '保留参数 key 名称',
+      pattern: kvParts.join('&'),
+      accent: '#f472b6',
+    });
+  }
+
+  // ── 模板6：括号包裹
+  templates.push({
+    icon: '📦',
+    name: '括号包裹',
+    desc: '用方括号包裹所有值',
+    pattern: vars.map(v => `[${v}]`).join('-'),
+    accent: '#fb923c',
+  });
+
+  // ── 模板7：环境前缀（若检测到 fat/env 类片段）
+  const envItem = sel.find(s =>
+    /fat|prod|uat|test|dev|qa/i.test(s.value) || s.id.startsWith('host_')
+  );
+  if (envItem) {
+    const envIdx = sel.indexOf(envItem);
+    const otherVars = vars.filter((_, i) => i !== envIdx);
+    if (otherVars.length > 0) {
+      templates.push({
+        icon: '🌐',
+        name: '环境前缀格式',
+        desc: `以 $${envIdx + 1}(环境) 为前缀`,
+        pattern: `${vars[envIdx]}-${otherVars.join('-')}`,
+        accent: '#22d3ee',
+      });
+    }
+  }
+
+  // ── 模板8：数字类型特殊处理（若有纯数字片段）
+  const numItems = sel.filter(s => /^\d+$/.test(s.value));
+  if (numItems.length > 0 && sel.length > 1) {
+    const numVars = numItems.map(s => `$${sel.indexOf(s) + 1}`);
+    const textVars = sel.filter(s => !/^\d+$/.test(s.value)).map(s => `$${sel.indexOf(s) + 1}`);
+    if (textVars.length > 0) {
+      templates.push({
+        icon: '🔢',
+        name: '文字-数字格式',
+        desc: '文本部分在前，数字在后',
+        pattern: `${textVars.join('-')}-${numVars.join('-')}`,
+        accent: '#818cf8',
+      });
+    }
+  }
+
+  // ── 模板9：仅第一个变量
+  if (sel.length > 1) {
+    templates.push({
+      icon: '1️⃣',
+      name: '仅第一个片段',
+      desc: `只使用 $1（${previews[0]}）`,
+      pattern: '$1',
+      accent: '#94a3b8',
+    });
+  }
+
+  // ── 模板10：自定义前缀推断（根据 host 中的服务名）
+  if (state.parsed) {
+    const p = state.parsed;
+    // 取 host 第一段作为服务名前缀
+    const serviceName = p.hostParts[0];
+    if (serviceName && serviceName.length <= 12) {
+      templates.push({
+        icon: '🏷️',
+        name: `服务名前缀 (${serviceName})`,
+        desc: `以域名首段 "${serviceName}" 作为前缀`,
+        pattern: `${serviceName}-${vars.join('-')}`,
+        accent: '#e879f9',
+      });
+    }
+  }
+
+  return templates;
+}
+
+// ─── 渲染推荐模板 ────────────────────────────────────────
+function renderRecommendedTemplates() {
+  const container = document.getElementById('recommendedTpls');
+  const tpls = generateRecommendedTemplates();
+
+  if (tpls.length === 0) {
+    container.innerHTML = '<div class="no-tpl-hint">请先选择要提取的片段，系统将自动推荐模板</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+
+  tpls.forEach((tpl, idx) => {
+    // 计算预览输出
+    let resultPreview = tpl.pattern;
+    state.selected.forEach((item, i) => {
+      const val = getExtractedValue(item);
+      resultPreview = resultPreview.replace(new RegExp('\\$' + (i + 1), 'g'), val);
+    });
+
+    const card = document.createElement('div');
+    card.className = 'tpl-card' + (state.appliedTplIndex === idx ? ' applied' : '');
+    card.style.setProperty('--accent', tpl.accent);
+    card.title = tpl.desc;
+
+    card.innerHTML = `
+      <span class="tpl-icon">${tpl.icon}</span>
+      <div class="tpl-info">
+        <div class="tpl-name">${escHtml(tpl.name)}</div>
+        <div class="tpl-preview">${escHtml(tpl.pattern)}</div>
+      </div>
+      <div class="tpl-result">→ ${escHtml(resultPreview)}</div>
+      <button class="tpl-use-btn" data-idx="${idx}">
+        ${state.appliedTplIndex === idx ? '✓ 已应用' : '使用'}
+      </button>
+    `;
+
+    card.querySelector('.tpl-use-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      applyTemplate(tpl.pattern, idx);
+    });
+
+    card.addEventListener('click', () => applyTemplate(tpl.pattern, idx));
+
+    container.appendChild(card);
+  });
+}
+
+function applyTemplate(pattern, idx) {
+  state.template = pattern;
+  state.appliedTplIndex = idx;
+  document.getElementById('templateInput').value = pattern;
+  renderAll();
+}
+
+// ─── 渲染分段 ─────────────────────────────────────────────
+function renderSegments() {
+  const area = document.getElementById('segmentsArea');
+  const p = state.parsed;
+  if (!p) {
+    area.innerHTML = '<span class="empty-hint">URL 格式无效，请检查</span>';
+    return;
+  }
+
+  area.innerHTML = '';
+
+  const addSep = (text) => {
+    const s = document.createElement('span');
+    s.className = 'seg-separator';
+    s.textContent = text;
+    area.appendChild(s);
+  };
+
+  const addBtn = (id, value, tooltip) => {
+    const wrap = document.createElement('span');
+    wrap.className = 'seg';
+    const btn = document.createElement('button');
+    btn.className = 'seg-btn';
+    btn.textContent = value;
+    btn.title = tooltip || value;
+    btn.dataset.id = id;
+    const sel = state.selected.find(s => s.id === id);
+    if (sel) {
+      btn.classList.add('selected');
+      btn.dataset.order = state.selected.indexOf(sel) + 1;
+    }
+    btn.onclick = () => toggleSegment(id, value, tooltip || value);
+    wrap.appendChild(btn);
+    area.appendChild(wrap);
+  };
+
+  addSep(p.protocol + '//');
+  p.hostParts.forEach((part, i) => {
+    addBtn(`host_${i}`, part, `主机段[${i}]: ${part}`);
+    if (i < p.hostParts.length - 1) addSep('.');
+  });
+
+  if (p.pathSegs.length > 0) {
+    addSep('/');
+    p.pathSegs.forEach((seg, i) => {
+      addBtn(`path_${i}`, seg, `路径段[${i}]: ${seg}`);
+      if (i < p.pathSegs.length - 1) addSep('/');
+    });
+  }
+
+  if (p.params.length > 0) {
+    addSep('?');
+    const paramArea = document.createElement('div');
+    paramArea.className = 'params-area';
+    p.params.forEach((param, i) => {
+      if (i > 0) {
+        const amp = document.createElement('span');
+        amp.className = 'param-key';
+        amp.textContent = '&';
+        paramArea.appendChild(amp);
+      }
+      const item = document.createElement('div');
+      item.className = 'param-item';
+
+      const keySpan = document.createElement('span');
+      keySpan.className = 'param-key';
+      keySpan.textContent = param.key + '=';
+
+      const valBtn = document.createElement('button');
+      valBtn.className = 'param-value-btn';
+      valBtn.textContent = param.value;
+      valBtn.title = `参数 ${param.key} 的值`;
+      valBtn.dataset.id = `param_${i}`;
+      const sel = state.selected.find(s => s.id === `param_${i}`);
+      if (sel) {
+        valBtn.classList.add('selected');
+        valBtn.dataset.order = state.selected.indexOf(sel) + 1;
+      }
+      valBtn.onclick = () => toggleSegment(`param_${i}`, param.value, `参数 ${param.key} 的值`);
+
+      item.appendChild(keySpan);
+      item.appendChild(valBtn);
+      paramArea.appendChild(item);
+    });
+    area.appendChild(paramArea);
+  }
+}
+
+// ─── 切换选中 ─────────────────────────────────────────────
+function toggleSegment(id, value, label) {
+  const idx = state.selected.findIndex(s => s.id === id);
+  if (idx >= 0) {
+    state.selected.splice(idx, 1);
+  } else {
+    state.selected.push({ id, value, label, sliceMode: 'full', sliceN: 4 });
+  }
+  state.appliedTplIndex = -1;
+  renderAll();
+}
+
+// ─── 渲染已选列表 ─────────────────────────────────────────
+function renderSelectedList() {
+  const list = document.getElementById('selectedList');
+  if (state.selected.length === 0) {
+    list.innerHTML = '<div class="no-selected">尚未选择任何片段</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  state.selected.forEach((item, i) => {
+    const div = document.createElement('div');
+    div.className = 'selected-item';
+
+    const badge = document.createElement('div');
+    badge.className = 'order-badge';
+    badge.textContent = i + 1;
+
+    const content = document.createElement('div');
+    content.className = 'selected-item-content';
+
+    const labelDiv = document.createElement('div');
+    labelDiv.className = 'selected-item-label';
+    labelDiv.textContent = item.label;
+
+    const valDiv = document.createElement('div');
+    valDiv.className = 'selected-item-value';
+    const preview = getExtractedValue(item);
+    valDiv.innerHTML = `<span class="tag-full">${escHtml(item.value)}</span>` +
+      (preview !== item.value ? ` → <span class="tag-prefix">${escHtml(preview)}</span>` : '');
+
+    content.appendChild(labelDiv);
+    content.appendChild(valDiv);
+
+    // slice options
+    const sliceDiv = document.createElement('div');
+    sliceDiv.className = 'slice-options';
+
+    const sliceLabel = document.createElement('span');
+    sliceLabel.className = 'slice-label';
+    sliceLabel.textContent = '提取方式:';
+
+    const toggle = document.createElement('div');
+    toggle.className = 'slice-toggle';
+
+    ['full', 'prefix', 'suffix', 'custom'].forEach(mode => {
+      const btn = document.createElement('button');
+      btn.className = 'slice-opt' + (item.sliceMode === mode ? ' active' : '');
+      btn.textContent = { full: '全部', prefix: '前N位', suffix: '后N位', custom: '自定义' }[mode];
+      btn.onclick = () => { item.sliceMode = mode; renderAll(); };
+      toggle.appendChild(btn);
+    });
+
+    sliceDiv.appendChild(sliceLabel);
+    sliceDiv.appendChild(toggle);
+
+    if (item.sliceMode === 'prefix' || item.sliceMode === 'suffix') {
+      const wrap = document.createElement('div');
+      wrap.className = 'slice-input-wrap';
+      const inp = document.createElement('input');
+      inp.type = 'number';
+      inp.className = 'slice-input';
+      inp.value = item.sliceN;
+      inp.min = 1;
+      inp.max = item.value.length;
+      inp.oninput = () => { item.sliceN = parseInt(inp.value) || 1; renderAll(); };
+      const unit = document.createElement('span');
+      unit.className = 'slice-label';
+      unit.textContent = '位';
+      wrap.appendChild(inp);
+      wrap.appendChild(unit);
+      sliceDiv.appendChild(wrap);
+    }
+
+    if (item.sliceMode === 'custom') {
+      const wrap = document.createElement('div');
+      wrap.className = 'slice-input-wrap';
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.style.cssText = 'width:120px;padding:2px 6px;font-size:0.78rem;';
+      inp.className = 'slice-input';
+      inp.placeholder = '正则，如 \\d+';
+      inp.value = item.customRegex || '';
+      inp.oninput = () => { item.customRegex = inp.value; renderAll(); };
+      wrap.appendChild(inp);
+      sliceDiv.appendChild(wrap);
+    }
+
+    content.appendChild(sliceDiv);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-btn';
+    removeBtn.textContent = '✕';
+    removeBtn.onclick = () => { state.selected.splice(i, 1); state.appliedTplIndex = -1; renderAll(); };
+
+    div.appendChild(badge);
+    div.appendChild(content);
+    div.appendChild(removeBtn);
+    list.appendChild(div);
+  });
+}
+
+// ─── 渲染变量提示chips ───────────────────────────────────
+function renderVarChips() {
+  const chips = document.getElementById('varChips');
+  chips.innerHTML = '';
+  if (state.selected.length === 0) return;
+
+  const label = document.createElement('span');
+  label.className = 'var-chip-label';
+  label.textContent = '点击插入变量:';
+  chips.appendChild(label);
+
+  state.selected.forEach((item, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'hint-chip';
+    const preview = getExtractedValue(item);
+    chip.innerHTML = `<span class="hint-chip-var">$${i + 1}</span><span class="hint-chip-val">→ ${escHtml(preview.length > 10 ? preview.slice(0, 10) + '…' : preview)}</span>`;
+    chip.title = `插入 $${i + 1}（${item.label}）`;
+    chip.onclick = () => {
+      const inp = document.getElementById('templateInput');
+      const pos = inp.selectionStart;
+      inp.value = inp.value.slice(0, pos) + `$${i + 1}` + inp.value.slice(pos);
+      state.template = inp.value;
+      state.appliedTplIndex = -1;
+      renderOutput();
+    };
+    chips.appendChild(chip);
+  });
+}
+
+// ─── 提取值 ──────────────────────────────────────────────
+function getExtractedValue(item) {
+  const v = item.value;
+  if (item.sliceMode === 'prefix') return v.slice(0, item.sliceN);
+  if (item.sliceMode === 'suffix') return v.slice(-item.sliceN);
+  if (item.sliceMode === 'custom') return item.customRegex ? `(${item.customRegex})` : v;
+  return v;
+}
+
+// ─── 生成正则 ─────────────────────────────────────────────
+function buildRegex() {
+  const p = state.parsed;
+  if (!p) return null;
+
+  let pattern = escapeRegex(p.protocol + '//');
+
+  const hostRegexParts = p.hostParts.map((part, i) => {
+    const sel = state.selected.find(s => s.id === `host_${i}`);
+    return sel ? buildCaptureGroup(sel) : escapeRegex(part);
+  });
+  pattern += hostRegexParts.join('\\.');
+
+  if (p.pathSegs.length > 0) {
+    pattern += '\\/';
+    pattern += p.pathSegs.map((seg, i) => {
+      const sel = state.selected.find(s => s.id === `path_${i}`);
+      return sel ? buildCaptureGroup(sel) : escapeRegex(seg);
+    }).join('\\/');
+  }
+
+  if (p.params.length > 0) {
+    const hasSelectedParam = p.params.some((_, i) => state.selected.find(s => s.id === `param_${i}`));
+    if (hasSelectedParam) {
+      pattern += '\\?';
+      const selectedParamPatterns = [];
+      p.params.forEach((param, i) => {
+        const sel = state.selected.find(s => s.id === `param_${i}`);
+        if (sel) selectedParamPatterns.push(escapeRegex(param.key + '=') + buildCaptureGroup(sel));
+      });
+      pattern += '(?:.*?[?&])?' + selectedParamPatterns.join('(?:&[^&]*)*&?');
+    } else {
+      pattern += '\\?' + p.params.map(param => escapeRegex(param.key + '=' + param.value)).join('&');
+    }
+  }
+
+  return pattern;
+}
+
+function buildCaptureGroup(sel) {
+  if (sel.sliceMode === 'full') return `([^/?&]+)`;
+  if (sel.sliceMode === 'prefix') return `([a-zA-Z0-9]{${sel.sliceN}})[^/?&]*`;
+  if (sel.sliceMode === 'suffix') return `[^/?&]*([a-zA-Z0-9]{${sel.sliceN}})`;
+  if (sel.sliceMode === 'custom') return `(${sel.customRegex || '[^/?&]+'})`;
+  return `([^/?&]+)`;
+}
+
+// ─── 渲染输出 ─────────────────────────────────────────────
+function renderOutput() {
+  const box = document.getElementById('outputBox');
+  const regex = buildRegex();
+  const template = state.template;
+
+  if (state.selected.length === 0) {
+    box.innerHTML = '<div class="empty-hint">请先选择要提取的片段</div>';
+    return;
+  }
+
+  let preview = template;
+  if (template) {
+    state.selected.forEach((item, i) => {
+      preview = preview.replace(new RegExp('\\$' + (i + 1), 'g'), getExtractedValue(item));
+    });
+  }
+
+  box.innerHTML = `
+    <button class="copy-btn" onclick="copyAll()">复制全部</button>
+    <div class="output-row">
+      <span class="output-key">正则</span>
+      <span class="output-val" id="out-regex">${escHtml(regex || '')}</span>
+    </div>
+    <div class="output-row">
+      <span class="output-key">替换为</span>
+      <span class="output-val replace-val">${escHtml(template || '(未设置模板，请在上方选择或输入)')}</span>
+    </div>
+    ${preview && template ? `
+    <div class="divider"></div>
+    <div class="output-row">
+      <span class="output-key">预览输出</span>
+      <span class="output-val" style="color:#fbbf24">${escHtml(preview)}</span>
+    </div>` : ''}
+  `;
+
+  updateSteps();
+}
+
+function copyAll() {
+  const regex = buildRegex() || '';
+  const tpl = state.template;
+  navigator.clipboard.writeText(`正则: ${regex}\n替换: ${tpl}`).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    if (btn) { btn.textContent = '✓ 已复制'; setTimeout(() => btn.textContent = '复制全部', 1500); }
+  });
+}
+
+// ─── 步骤更新 ─────────────────────────────────────────────
+function updateSteps() {
+  document.getElementById('step1').classList.toggle('active', !!state.parsed);
+  document.getElementById('step2').classList.toggle('active', state.selected.length > 0);
+  document.getElementById('step3').classList.toggle('active', !!state.template);
+  document.getElementById('step4').classList.toggle('active', state.selected.length > 0 && !!state.template);
+}
+
+// ─── 工具函数 ─────────────────────────────────────────────
+function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function escHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+// ─── 统一渲染 ─────────────────────────────────────────────
+function renderAll() {
+  renderSegments();
+  renderSelectedList();
+  renderRecommendedTemplates();
+  renderVarChips();
+  renderOutput();
+}
+
+// ─── 事件绑定 ─────────────────────────────────────────────
+document.getElementById('urlInput').addEventListener('input', (e) => {
+  state.rawUrl = e.target.value.trim();
+  state.parsed = parseUrl(state.rawUrl);
+  state.selected = [];
+  state.template = '';
+  state.appliedTplIndex = -1;
+  document.getElementById('templateInput').value = '';
+  renderAll();
+});
+
+document.getElementById('templateInput').addEventListener('input', (e) => {
+  state.template = e.target.value;
+  state.appliedTplIndex = -1;
+  renderOutput();
+  renderRecommendedTemplates();
+});
+
+// ─── 初始示例 ─────────────────────────────────────────────
+const demo = 'https://vbooking.ctrip.fat29.qa.nt.ctripcorp.com/ivbk/vendor/saleControlMerge?from=vbk&productId=8520143&isTab=1';
+document.getElementById('urlInput').value = demo;
+state.rawUrl = demo;
+state.parsed = parseUrl(demo);
+renderAll();
+</script>
+</body>
+</html>
