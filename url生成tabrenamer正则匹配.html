@@ -6,7 +6,6 @@
 <title>URL 正则生成器</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  
   body {
     font-family: 'Segoe UI', system-ui, sans-serif;
     background: #0f1117;
@@ -14,7 +13,6 @@
     min-height: 100vh;
     padding: 24px;
   }
-
   h1 {
     text-align: center;
     font-size: 1.5rem;
@@ -23,14 +21,7 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
-
-  .subtitle {
-    text-align: center;
-    color: #64748b;
-    font-size: 0.85rem;
-    margin-bottom: 24px;
-  }
-
+  .subtitle { text-align: center; color: #64748b; font-size: 0.85rem; margin-bottom: 24px; }
   .card {
     background: #1e2130;
     border: 1px solid #2d3148;
@@ -38,7 +29,6 @@
     padding: 20px;
     margin-bottom: 16px;
   }
-
   .card-title {
     font-size: 0.8rem;
     text-transform: uppercase;
@@ -47,7 +37,6 @@
     margin-bottom: 12px;
     font-weight: 600;
   }
-
   input[type="text"] {
     width: 100%;
     background: #0f1117;
@@ -60,7 +49,6 @@
     outline: none;
     transition: border-color 0.2s;
   }
-
   input[type="text"]:focus { border-color: #60a5fa; }
 
   .url-segments {
@@ -70,15 +58,15 @@
     margin-top: 14px;
     align-items: center;
   }
-
   .seg { display: inline-flex; align-items: center; gap: 2px; }
-
   .seg-separator {
     color: #475569;
     font-size: 0.85rem;
     font-family: monospace;
     user-select: none;
+    padding: 0 1px;
   }
+  .seg-separator.hash-sep { color: #f59e0b; font-weight: bold; }
 
   .seg-btn {
     padding: 4px 10px;
@@ -96,27 +84,26 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-
   .seg-btn:hover { border-color: #60a5fa; color: #e2e8f0; background: #2d3a5e; }
-
-  .seg-btn.selected {
-    border-color: #a78bfa;
-    background: #2d2450;
-    color: #c4b5fd;
-  }
-
+  .seg-btn.selected { border-color: #a78bfa; background: #2d2450; color: #c4b5fd; }
   .seg-btn.selected::after {
     content: attr(data-order);
     position: absolute;
     top: -7px; right: -5px;
-    background: #a78bfa;
-    color: #1e1b4b;
+    background: #a78bfa; color: #1e1b4b;
     border-radius: 50%;
     width: 16px; height: 16px;
     font-size: 10px; font-weight: bold;
     display: flex; align-items: center; justify-content: center;
     font-family: system-ui;
   }
+  .seg-btn.hash-seg {
+    border-color: #3d3520;
+    background: #2a2010;
+    color: #fbbf24;
+  }
+  .seg-btn.hash-seg:hover { border-color: #f59e0b; background: #3a2e10; }
+  .seg-btn.hash-seg.selected { border-color: #f59e0b; background: #3a2800; color: #fde68a; }
 
   .params-area {
     margin-top: 12px;
@@ -125,11 +112,8 @@
     gap: 6px;
     align-items: center;
   }
-
   .param-item { display: flex; align-items: center; gap: 3px; }
-
   .param-key { color: #475569; font-family: monospace; font-size: 0.82rem; }
-
   .param-value-btn {
     padding: 3px 8px;
     border-radius: 5px;
@@ -142,30 +126,23 @@
     transition: all 0.15s;
     position: relative;
   }
-
   .param-value-btn:hover { border-color: #38bdf8; background: #1e3a4a; }
-
-  .param-value-btn.selected {
-    border-color: #a78bfa;
-    background: #2d2450;
-    color: #c4b5fd;
-  }
-
+  .param-value-btn.selected { border-color: #a78bfa; background: #2d2450; color: #c4b5fd; }
   .param-value-btn.selected::after {
     content: attr(data-order);
     position: absolute;
     top: -7px; right: -5px;
-    background: #a78bfa;
-    color: #1e1b4b;
+    background: #a78bfa; color: #1e1b4b;
     border-radius: 50%;
     width: 16px; height: 16px;
     font-size: 10px; font-weight: bold;
     display: flex; align-items: center; justify-content: center;
     font-family: system-ui;
   }
+  .param-value-btn.hash-param { color: #fbbf24; background: #1a1500; border-color: #3d3520; }
+  .param-value-btn.hash-param:hover { border-color: #f59e0b; }
 
   .selected-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
-
   .selected-item {
     display: flex;
     align-items: flex-start;
@@ -175,42 +152,25 @@
     padding: 8px 12px;
     border: 1px solid #2d3148;
   }
-
   .order-badge {
-    background: #a78bfa;
-    color: #1e1b4b;
+    background: #a78bfa; color: #1e1b4b;
     border-radius: 50%;
     width: 22px; height: 22px;
     display: flex; align-items: center; justify-content: center;
     font-size: 0.75rem; font-weight: bold;
     flex-shrink: 0; margin-top: 2px;
   }
-
   .selected-item-content { flex: 1; min-width: 0; }
-
   .selected-item-label { font-size: 0.78rem; color: #64748b; margin-bottom: 3px; }
-
   .selected-item-value {
     font-family: monospace;
-    font-size: 0.88rem;
-    color: #c4b5fd;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 0.88rem; color: #c4b5fd;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     margin-bottom: 6px;
   }
-
-  .slice-options {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
+  .slice-options { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .slice-label { font-size: 0.75rem; color: #64748b; }
-
   .slice-toggle { display: flex; gap: 4px; }
-
   .slice-opt {
     padding: 2px 8px;
     border-radius: 4px;
@@ -221,268 +181,169 @@
     cursor: pointer;
     transition: all 0.15s;
   }
-
   .slice-opt.active { border-color: #60a5fa; background: #1e3a5f; color: #93c5fd; }
-
   .slice-input-wrap { display: flex; align-items: center; gap: 4px; }
-
   .slice-input {
     width: 50px !important;
     padding: 2px 6px !important;
     font-size: 0.78rem !important;
     text-align: center;
   }
-
   .remove-btn {
-    background: none;
-    border: none;
-    color: #475569;
-    cursor: pointer;
-    font-size: 1rem;
-    padding: 2px 6px;
-    border-radius: 4px;
-    transition: all 0.15s;
-    flex-shrink: 0;
+    background: none; border: none;
+    color: #475569; cursor: pointer;
+    font-size: 1rem; padding: 2px 6px;
+    border-radius: 4px; transition: all 0.15s; flex-shrink: 0;
   }
-
   .remove-btn:hover { color: #f87171; background: #2d1515; }
 
-  /* ── 推荐模板区域 ── */
   .tpl-section-title {
-    font-size: 0.75rem;
-    color: #64748b;
+    font-size: 0.75rem; color: #64748b;
     margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    display: flex; align-items: center; gap: 6px;
   }
-
-  .tpl-section-title::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: #2d3148;
-  }
-
-  .recommended-tpls {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 14px;
-  }
-
+  .tpl-section-title::after { content: ''; flex: 1; height: 1px; background: #2d3148; }
+  .recommended-tpls { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
   .tpl-card {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    display: flex; align-items: center; gap: 10px;
     background: #0f1117;
     border: 1px solid #2d3148;
     border-radius: 8px;
     padding: 8px 12px;
     cursor: pointer;
     transition: all 0.18s;
-    position: relative;
-    overflow: hidden;
+    position: relative; overflow: hidden;
   }
-
   .tpl-card::before {
     content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
+    position: absolute; left: 0; top: 0; bottom: 0;
     width: 3px;
     background: var(--accent, #60a5fa);
     border-radius: 3px 0 0 3px;
   }
-
-  .tpl-card:hover {
-    border-color: var(--accent, #60a5fa);
-    background: #161b2e;
-    transform: translateX(2px);
-  }
-
-  .tpl-card.applied {
-    border-color: #34d399;
-    background: #0d2218;
-  }
-
+  .tpl-card:hover { border-color: var(--accent, #60a5fa); background: #161b2e; transform: translateX(2px); }
+  .tpl-card.applied { border-color: #34d399; background: #0d2218; }
   .tpl-card.applied::before { background: #34d399; }
-
   .tpl-icon { font-size: 1.1rem; flex-shrink: 0; }
-
   .tpl-info { flex: 1; min-width: 0; }
-
-  .tpl-name {
-    font-size: 0.82rem;
-    color: #94a3b8;
-    margin-bottom: 3px;
-    font-weight: 500;
-  }
-
-  .tpl-preview {
-    font-family: 'Courier New', monospace;
-    font-size: 0.8rem;
-    color: #fbbf24;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .tpl-result {
-    font-size: 0.75rem;
-    color: #34d399;
-    font-family: monospace;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 160px;
-  }
-
+  .tpl-name { font-size: 0.82rem; color: #94a3b8; margin-bottom: 3px; font-weight: 500; }
+  .tpl-preview { font-family: 'Courier New', monospace; font-size: 0.8rem; color: #fbbf24; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tpl-result { font-size: 0.75rem; color: #34d399; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
   .tpl-use-btn {
-    background: #1e2a4a;
-    border: 1px solid #3b4f7a;
-    border-radius: 6px;
-    color: #60a5fa;
-    font-size: 0.75rem;
-    padding: 4px 10px;
-    cursor: pointer;
-    transition: all 0.15s;
-    flex-shrink: 0;
-    white-space: nowrap;
+    background: #1e2a4a; border: 1px solid #3b4f7a;
+    border-radius: 6px; color: #60a5fa;
+    font-size: 0.75rem; padding: 4px 10px;
+    cursor: pointer; transition: all 0.15s; flex-shrink: 0; white-space: nowrap;
   }
-
   .tpl-use-btn:hover { background: #2d3f6a; border-color: #60a5fa; }
+  .tpl-card.applied .tpl-use-btn { background: #0d2218; border-color: #34d399; color: #34d399; }
 
-  .tpl-card.applied .tpl-use-btn {
-    background: #0d2218;
-    border-color: #34d399;
-    color: #34d399;
-  }
-
-  /* 自定义变量提示 */
   .template-wrap { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-
-  .var-chips {
-    display: flex;
-    gap: 5px;
-    flex-wrap: wrap;
-    margin-top: 8px;
-    align-items: center;
-  }
-
+  .var-chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
   .var-chip-label { font-size: 0.75rem; color: #64748b; }
-
   .hint-chip {
-    padding: 3px 9px;
-    border-radius: 5px;
-    background: #252840;
-    border: 1px solid #2d3148;
-    font-family: monospace;
-    font-size: 0.78rem;
-    color: #94a3b8;
-    cursor: pointer;
-    transition: all 0.15s;
-    display: flex;
-    align-items: center;
-    gap: 4px;
+    padding: 3px 9px; border-radius: 5px;
+    background: #252840; border: 1px solid #2d3148;
+    font-family: monospace; font-size: 0.78rem; color: #94a3b8;
+    cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; gap: 4px;
   }
-
   .hint-chip:hover { border-color: #a78bfa; color: #c4b5fd; background: #2d2450; }
-
   .hint-chip-var { color: #a78bfa; font-weight: bold; }
   .hint-chip-val { color: #64748b; }
 
-  /* 输出 */
   .output-box {
-    background: #0a0d14;
-    border: 1px solid #2d3148;
-    border-radius: 8px;
-    padding: 14px;
+    background: #0a0d14; border: 1px solid #2d3148;
+    border-radius: 8px; padding: 14px;
     font-family: 'Courier New', monospace;
-    font-size: 0.85rem;
-    line-height: 1.8;
-    position: relative;
+    font-size: 0.85rem; line-height: 1.8; position: relative;
   }
-
-  .output-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    margin-bottom: 10px;
-  }
-
+  .output-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
   .output-row:last-child { margin-bottom: 0; }
-
   .output-key {
-    color: #475569;
-    font-size: 0.75rem;
-    min-width: 70px;
-    padding-top: 2px;
-    font-family: system-ui;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    flex-shrink: 0;
+    color: #475569; font-size: 0.75rem; min-width: 70px;
+    padding-top: 2px; font-family: system-ui;
+    text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0;
   }
-
   .output-val { color: #86efac; word-break: break-all; flex: 1; }
   .output-val.replace-val { color: #fbbf24; }
-
   .copy-btn {
-    position: absolute;
-    top: 10px; right: 10px;
-    background: #252840;
-    border: 1px solid #2d3148;
-    border-radius: 6px;
-    color: #64748b;
-    padding: 4px 10px;
-    font-size: 0.75rem;
-    cursor: pointer;
-    transition: all 0.15s;
-    font-family: system-ui;
+    position: absolute; top: 10px; right: 10px;
+    background: #252840; border: 1px solid #2d3148;
+    border-radius: 6px; color: #64748b;
+    padding: 4px 10px; font-size: 0.75rem;
+    cursor: pointer; transition: all 0.15s; font-family: system-ui;
   }
-
   .copy-btn:hover { border-color: #60a5fa; color: #60a5fa; }
-
   .divider { height: 1px; background: #2d3148; margin: 10px 0; }
-
   .empty-hint { color: #475569; font-size: 0.85rem; text-align: center; padding: 12px; }
 
   .steps {
-    display: flex;
-    gap: 0;
-    margin-bottom: 20px;
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid #2d3148;
+    display: flex; margin-bottom: 20px;
+    border-radius: 8px; overflow: hidden; border: 1px solid #2d3148;
   }
-
   .step {
-    flex: 1;
-    text-align: center;
-    padding: 8px;
-    font-size: 0.78rem;
-    color: #475569;
-    background: #1a1f2e;
-    border-right: 1px solid #2d3148;
-    transition: all 0.3s;
+    flex: 1; text-align: center; padding: 8px;
+    font-size: 0.78rem; color: #475569;
+    background: #1a1f2e; border-right: 1px solid #2d3148; transition: all 0.3s;
   }
-
   .step:last-child { border-right: none; }
   .step.active { background: #1e2a4a; color: #60a5fa; }
   .step-num { display: block; font-size: 1.1rem; margin-bottom: 2px; }
-
   .no-selected { color: #334155; font-size: 0.85rem; padding: 8px 0; }
-
   .tag-full { color: #34d399; }
   .tag-prefix { color: #fbbf24; }
-
   .no-tpl-hint {
-    color: #334155;
-    font-size: 0.82rem;
-    text-align: center;
-    padding: 10px;
-    border: 1px dashed #2d3148;
-    border-radius: 8px;
+    color: #334155; font-size: 0.82rem; text-align: center;
+    padding: 10px; border: 1px dashed #2d3148; border-radius: 8px;
   }
+
+  .zone-label {
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-right: 2px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+  .zone-label.host { background: #1e3a5f; color: #60a5fa; }
+  .zone-label.path { background: #1a2e1a; color: #4ade80; }
+  .zone-label.hash { background: #3a2800; color: #fbbf24; }
+  .zone-label.param { background: #1a1535; color: #a78bfa; }
+
+  .url-zone {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    margin-top: 6px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #2d3148;
+  }
+  .url-zone.zone-host { border-color: #1e3a5f; background: #0d1a2e; }
+  .url-zone.zone-path { border-color: #1a2e1a; background: #0a1a0a; }
+  .url-zone.zone-hash { border-color: #3a2800; background: #1a1200; }
+  .url-zone.zone-param { border-color: #1a1535; background: #0d0a1e; }
+
+  /* 正则输出区域的复制按钮行 */
+  .regex-copy-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+  .copy-single-btn {
+    background: #252840; border: 1px solid #2d3148;
+    border-radius: 5px; color: #64748b;
+    padding: 3px 9px; font-size: 0.72rem;
+    cursor: pointer; transition: all 0.15s; font-family: system-ui;
+    white-space: nowrap;
+  }
+  .copy-single-btn:hover { border-color: #60a5fa; color: #60a5fa; }
 
   @media (max-width: 600px) {
     body { padding: 12px; }
@@ -503,16 +364,14 @@
   <div class="step" id="step4"><span class="step-num">④</span>复制结果</div>
 </div>
 
-<!-- Step 1 -->
 <div class="card">
   <div class="card-title">① 输入 URL</div>
-  <input type="text" id="urlInput" placeholder="https://example.com/path?key=value" />
+  <input type="text" id="urlInput" placeholder="https://example.com/#/path/to/page?key=value" />
   <div class="url-segments" id="segmentsArea">
     <span class="empty-hint">请输入 URL 后点击各部分进行选择 ↑</span>
   </div>
 </div>
 
-<!-- Step 2 -->
 <div class="card">
   <div class="card-title">② 已选提取片段</div>
   <div class="selected-list" id="selectedList">
@@ -520,17 +379,12 @@
   </div>
 </div>
 
-<!-- Step 3 -->
 <div class="card">
   <div class="card-title">③ 替换模板（输出格式）</div>
-
-  <!-- 推荐模板 -->
   <div class="tpl-section-title">推荐模板</div>
   <div class="recommended-tpls" id="recommendedTpls">
     <div class="no-tpl-hint">请先选择要提取的片段，系统将自动推荐模板</div>
   </div>
-
-  <!-- 自定义输入 -->
   <div class="tpl-section-title">自定义模板</div>
   <div class="template-wrap">
     <input type="text" id="templateInput" placeholder="例如：vbk-fat$1-$2-$3" style="flex:1;min-width:200px" />
@@ -538,7 +392,6 @@
   <div class="var-chips" id="varChips"></div>
 </div>
 
-<!-- Step 4 -->
 <div class="card">
   <div class="card-title">④ 生成结果</div>
   <div class="output-box" id="outputBox">
@@ -551,224 +404,82 @@
 const state = {
   rawUrl: '',
   parsed: null,
-  selected: [],   // [{ id, value, label, sliceMode, sliceN, customRegex }]
+  selected: [],
   template: '',
   appliedTplIndex: -1,
 };
 
-// ─── 解析 URL ────────────────────────────────────────────
-function parseUrl(url) {
+// ─── 解析 URL（完整支持 hash 内路径和参数）───────────────
+function parseUrl(rawUrl) {
+  if (!rawUrl) return null;
   try {
-    const u = new URL(url);
+    const u = new URL(rawUrl);
     const hostParts = u.hostname.split('.');
+
+    // pathname（# 之前的路径，去掉末尾空段）
     const pathSegs = u.pathname.split('/').filter(s => s.length > 0);
+
+    // ── 解析 hash ──
+    // u.hash 包含 # 符号本身，例如：
+    //   "#/operation-detail/2974/272/getRecalcTaskStatus?lang=zh-CN"
+    //   "#!/path"
+    //   "#anchor"
+    let hashPathSegs = [];
+    let hashParams   = [];
+    let hashPrefix   = '';   // 记录 # 后的前缀字符，如 "/" 或 "!/"
+
+    const rawHash = u.hash; // 含 #
+
+    if (rawHash && rawHash.length > 1) {
+      const hashContent = rawHash.slice(1); // 去掉 #
+
+      // 判断前缀：!/ 或 /
+      if (hashContent.startsWith('!/')) {
+        hashPrefix = '!/';
+      } else if (hashContent.startsWith('/')) {
+        hashPrefix = '/';
+      }
+      // 去掉前缀后的内容
+      const afterPrefix = hashContent.slice(hashPrefix.length);
+
+      // 分离 hash 内路径和查询参数
+      const qIdx = afterPrefix.indexOf('?');
+      const hashPath  = qIdx >= 0 ? afterPrefix.slice(0, qIdx) : afterPrefix;
+      const hashQuery = qIdx >= 0 ? afterPrefix.slice(qIdx + 1) : '';
+
+      hashPathSegs = hashPath.split('/').filter(s => s.length > 0);
+
+      if (hashQuery) {
+        hashQuery.split('&').forEach(pair => {
+          const eIdx = pair.indexOf('=');
+          if (eIdx >= 0) {
+            hashParams.push({ key: decodeURIComponent(pair.slice(0, eIdx)), value: decodeURIComponent(pair.slice(eIdx + 1)) });
+          } else if (pair) {
+            hashParams.push({ key: decodeURIComponent(pair), value: '' });
+          }
+        });
+      }
+    }
+
+    // 普通 query 参数
     const params = [];
     u.searchParams.forEach((v, k) => params.push({ key: k, value: v }));
-    return { protocol: u.protocol, host: u.hostname, hostParts, pathSegs, params };
-  } catch { return null; }
-}
 
-// ─── 推荐模板生成 ────────────────────────────────────────
-function generateRecommendedTemplates() {
-  const sel = state.selected;
-  if (sel.length === 0) return [];
-
-  const vars = sel.map((s, i) => `$${i + 1}`);
-  const previews = sel.map(s => getExtractedValue(s));
-
-  // 分析片段类型
-  const types = sel.map(s => {
-    if (s.id.startsWith('host_')) return 'host';
-    if (s.id.startsWith('path_')) return 'path';
-    if (s.id.startsWith('param_')) return 'param';
-    return 'other';
-  });
-
-  const templates = [];
-
-  // ── 模板1：连字符拼接（最通用）
-  templates.push({
-    icon: '🔗',
-    name: '连字符拼接',
-    desc: '用 - 连接所有提取值',
-    pattern: vars.join('-'),
-    accent: '#60a5fa',
-  });
-
-  // ── 模板2：下划线拼接
-  templates.push({
-    icon: '🔤',
-    name: '下划线拼接',
-    desc: '用 _ 连接所有提取值',
-    pattern: vars.join('_'),
-    accent: '#a78bfa',
-  });
-
-  // ── 模板3：点号拼接
-  templates.push({
-    icon: '📌',
-    name: '点号拼接',
-    desc: '用 . 连接所有提取值',
-    pattern: vars.join('.'),
-    accent: '#f59e0b',
-  });
-
-  // ── 模板4：路径格式
-  templates.push({
-    icon: '📂',
-    name: '路径格式',
-    desc: '用 / 连接，形如路径',
-    pattern: vars.join('/'),
-    accent: '#34d399',
-  });
-
-  // ── 模板5：键值对格式（若有参数类型）
-  const paramItems = sel.filter((s, i) => types[i] === 'param');
-  if (paramItems.length > 0) {
-    const p = state.parsed;
-    const kvParts = sel.map((s, i) => {
-      if (types[i] === 'param') {
-        const paramIdx = parseInt(s.id.split('_')[1]);
-        const key = p.params[paramIdx]?.key || 'key';
-        return `${key}=${vars[i]}`;
-      }
-      return vars[i];
-    });
-    templates.push({
-      icon: '🗝️',
-      name: '键值对格式',
-      desc: '保留参数 key 名称',
-      pattern: kvParts.join('&'),
-      accent: '#f472b6',
-    });
+    return {
+      protocol: u.protocol,
+      host: u.hostname,
+      hostParts,
+      pathSegs,
+      params,
+      hasHash: rawHash.length > 1,
+      hashPrefix,      // "/" 或 "!/" 或 ""
+      hashPathSegs,
+      hashParams,
+      rawHash,
+    };
+  } catch (e) {
+    return null;
   }
-
-  // ── 模板6：括号包裹
-  templates.push({
-    icon: '📦',
-    name: '括号包裹',
-    desc: '用方括号包裹所有值',
-    pattern: vars.map(v => `[${v}]`).join('-'),
-    accent: '#fb923c',
-  });
-
-  // ── 模板7：环境前缀（若检测到 fat/env 类片段）
-  const envItem = sel.find(s =>
-    /fat|prod|uat|test|dev|qa/i.test(s.value) || s.id.startsWith('host_')
-  );
-  if (envItem) {
-    const envIdx = sel.indexOf(envItem);
-    const otherVars = vars.filter((_, i) => i !== envIdx);
-    if (otherVars.length > 0) {
-      templates.push({
-        icon: '🌐',
-        name: '环境前缀格式',
-        desc: `以 $${envIdx + 1}(环境) 为前缀`,
-        pattern: `${vars[envIdx]}-${otherVars.join('-')}`,
-        accent: '#22d3ee',
-      });
-    }
-  }
-
-  // ── 模板8：数字类型特殊处理（若有纯数字片段）
-  const numItems = sel.filter(s => /^\d+$/.test(s.value));
-  if (numItems.length > 0 && sel.length > 1) {
-    const numVars = numItems.map(s => `$${sel.indexOf(s) + 1}`);
-    const textVars = sel.filter(s => !/^\d+$/.test(s.value)).map(s => `$${sel.indexOf(s) + 1}`);
-    if (textVars.length > 0) {
-      templates.push({
-        icon: '🔢',
-        name: '文字-数字格式',
-        desc: '文本部分在前，数字在后',
-        pattern: `${textVars.join('-')}-${numVars.join('-')}`,
-        accent: '#818cf8',
-      });
-    }
-  }
-
-  // ── 模板9：仅第一个变量
-  if (sel.length > 1) {
-    templates.push({
-      icon: '1️⃣',
-      name: '仅第一个片段',
-      desc: `只使用 $1（${previews[0]}）`,
-      pattern: '$1',
-      accent: '#94a3b8',
-    });
-  }
-
-  // ── 模板10：自定义前缀推断（根据 host 中的服务名）
-  if (state.parsed) {
-    const p = state.parsed;
-    // 取 host 第一段作为服务名前缀
-    const serviceName = p.hostParts[0];
-    if (serviceName && serviceName.length <= 12) {
-      templates.push({
-        icon: '🏷️',
-        name: `服务名前缀 (${serviceName})`,
-        desc: `以域名首段 "${serviceName}" 作为前缀`,
-        pattern: `${serviceName}-${vars.join('-')}`,
-        accent: '#e879f9',
-      });
-    }
-  }
-
-  return templates;
-}
-
-// ─── 渲染推荐模板 ────────────────────────────────────────
-function renderRecommendedTemplates() {
-  const container = document.getElementById('recommendedTpls');
-  const tpls = generateRecommendedTemplates();
-
-  if (tpls.length === 0) {
-    container.innerHTML = '<div class="no-tpl-hint">请先选择要提取的片段，系统将自动推荐模板</div>';
-    return;
-  }
-
-  container.innerHTML = '';
-
-  tpls.forEach((tpl, idx) => {
-    // 计算预览输出
-    let resultPreview = tpl.pattern;
-    state.selected.forEach((item, i) => {
-      const val = getExtractedValue(item);
-      resultPreview = resultPreview.replace(new RegExp('\\$' + (i + 1), 'g'), val);
-    });
-
-    const card = document.createElement('div');
-    card.className = 'tpl-card' + (state.appliedTplIndex === idx ? ' applied' : '');
-    card.style.setProperty('--accent', tpl.accent);
-    card.title = tpl.desc;
-
-    card.innerHTML = `
-      <span class="tpl-icon">${tpl.icon}</span>
-      <div class="tpl-info">
-        <div class="tpl-name">${escHtml(tpl.name)}</div>
-        <div class="tpl-preview">${escHtml(tpl.pattern)}</div>
-      </div>
-      <div class="tpl-result">→ ${escHtml(resultPreview)}</div>
-      <button class="tpl-use-btn" data-idx="${idx}">
-        ${state.appliedTplIndex === idx ? '✓ 已应用' : '使用'}
-      </button>
-    `;
-
-    card.querySelector('.tpl-use-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      applyTemplate(tpl.pattern, idx);
-    });
-
-    card.addEventListener('click', () => applyTemplate(tpl.pattern, idx));
-
-    container.appendChild(card);
-  });
-}
-
-function applyTemplate(pattern, idx) {
-  state.template = pattern;
-  state.appliedTplIndex = idx;
-  document.getElementById('templateInput').value = pattern;
-  renderAll();
 }
 
 // ─── 渲染分段 ─────────────────────────────────────────────
@@ -782,18 +493,16 @@ function renderSegments() {
 
   area.innerHTML = '';
 
-  const addSep = (text) => {
+  const makeSep = (text, isHash) => {
     const s = document.createElement('span');
-    s.className = 'seg-separator';
+    s.className = 'seg-separator' + (isHash ? ' hash-sep' : '');
     s.textContent = text;
-    area.appendChild(s);
+    return s;
   };
 
-  const addBtn = (id, value, tooltip) => {
-    const wrap = document.createElement('span');
-    wrap.className = 'seg';
+  const makeBtn = (id, value, tooltip, extraClass) => {
     const btn = document.createElement('button');
-    btn.className = 'seg-btn';
+    btn.className = 'seg-btn' + (extraClass ? ' ' + extraClass : '');
     btn.textContent = value;
     btn.title = tooltip || value;
     btn.dataset.id = id;
@@ -803,59 +512,104 @@ function renderSegments() {
       btn.dataset.order = state.selected.indexOf(sel) + 1;
     }
     btn.onclick = () => toggleSegment(id, value, tooltip || value);
-    wrap.appendChild(btn);
-    area.appendChild(wrap);
+    return btn;
   };
 
-  addSep(p.protocol + '//');
+  // ── HOST 区域
+  const hostZone = document.createElement('div');
+  hostZone.className = 'url-zone zone-host';
+  const hostLabel = document.createElement('span');
+  hostLabel.className = 'zone-label host';
+  hostLabel.textContent = 'HOST';
+  hostZone.appendChild(hostLabel);
+  hostZone.appendChild(makeSep(p.protocol + '//'));
   p.hostParts.forEach((part, i) => {
-    addBtn(`host_${i}`, part, `主机段[${i}]: ${part}`);
-    if (i < p.hostParts.length - 1) addSep('.');
+    hostZone.appendChild(makeBtn(`host_${i}`, part, `主机段[${i}]: ${part}`));
+    if (i < p.hostParts.length - 1) hostZone.appendChild(makeSep('.'));
   });
+  area.appendChild(hostZone);
 
+  // ── PATH 区域（# 之前，且只在有路径段时显示）
   if (p.pathSegs.length > 0) {
-    addSep('/');
+    const pathZone = document.createElement('div');
+    pathZone.className = 'url-zone zone-path';
+    const pathLabel = document.createElement('span');
+    pathLabel.className = 'zone-label path';
+    pathLabel.textContent = 'PATH';
+    pathZone.appendChild(pathLabel);
+    pathZone.appendChild(makeSep('/'));
     p.pathSegs.forEach((seg, i) => {
-      addBtn(`path_${i}`, seg, `路径段[${i}]: ${seg}`);
-      if (i < p.pathSegs.length - 1) addSep('/');
+      pathZone.appendChild(makeBtn(`path_${i}`, seg, `路径段[${i}]: ${seg}`));
+      if (i < p.pathSegs.length - 1) pathZone.appendChild(makeSep('/'));
     });
+    area.appendChild(pathZone);
   }
 
-  if (p.params.length > 0) {
-    addSep('?');
-    const paramArea = document.createElement('div');
-    paramArea.className = 'params-area';
-    p.params.forEach((param, i) => {
-      if (i > 0) {
-        const amp = document.createElement('span');
-        amp.className = 'param-key';
-        amp.textContent = '&';
-        paramArea.appendChild(amp);
-      }
-      const item = document.createElement('div');
-      item.className = 'param-item';
+  // ── HASH 区域
+  if (p.hasHash && (p.hashPathSegs.length > 0 || p.hashParams.length > 0)) {
+    const hashZone = document.createElement('div');
+    hashZone.className = 'url-zone zone-hash';
+    const hashLabel = document.createElement('span');
+    hashLabel.className = 'zone-label hash';
+    hashLabel.textContent = 'HASH';
+    hashZone.appendChild(hashLabel);
 
+    // 关键修复：正确显示 #/ 或 #!/ 或 #
+    // pathname 末尾可能有 /，也可能没有，这里直接用原始前缀
+    hashZone.appendChild(makeSep('/#' + p.hashPrefix, true));
+
+    p.hashPathSegs.forEach((seg, i) => {
+      hashZone.appendChild(makeBtn(`hpath_${i}`, seg, `Hash路径[${i}]: ${seg}`, 'hash-seg'));
+      if (i < p.hashPathSegs.length - 1) hashZone.appendChild(makeSep('/'));
+    });
+
+    if (p.hashParams.length > 0) {
+      hashZone.appendChild(makeSep('?', true));
+      p.hashParams.forEach((param, i) => {
+        if (i > 0) hashZone.appendChild(makeSep('&'));
+        const keySpan = document.createElement('span');
+        keySpan.className = 'param-key';
+        keySpan.style.color = '#a16207';
+        keySpan.textContent = param.key + '=';
+        hashZone.appendChild(keySpan);
+        const vBtn = makeBtn(`hparam_${i}`, param.value, `Hash参数 ${param.key}: ${param.value}`, 'hash-seg');
+        vBtn.classList.add('param-value-btn', 'hash-param');
+        hashZone.appendChild(vBtn);
+      });
+    }
+    area.appendChild(hashZone);
+  }
+
+  // ── QUERY 参数区域
+  if (p.params.length > 0) {
+    const paramZone = document.createElement('div');
+    paramZone.className = 'url-zone zone-param';
+    const paramLabel = document.createElement('span');
+    paramLabel.className = 'zone-label param';
+    paramLabel.textContent = 'QUERY';
+    paramZone.appendChild(paramLabel);
+    paramZone.appendChild(makeSep('?'));
+
+    p.params.forEach((param, i) => {
+      if (i > 0) paramZone.appendChild(makeSep('&'));
       const keySpan = document.createElement('span');
       keySpan.className = 'param-key';
       keySpan.textContent = param.key + '=';
+      paramZone.appendChild(keySpan);
 
-      const valBtn = document.createElement('button');
-      valBtn.className = 'param-value-btn';
-      valBtn.textContent = param.value;
-      valBtn.title = `参数 ${param.key} 的值`;
-      valBtn.dataset.id = `param_${i}`;
+      const vBtn = document.createElement('button');
+      vBtn.className = 'param-value-btn';
+      vBtn.textContent = param.value;
+      vBtn.title = `参数 ${param.key}: ${param.value}`;
       const sel = state.selected.find(s => s.id === `param_${i}`);
       if (sel) {
-        valBtn.classList.add('selected');
-        valBtn.dataset.order = state.selected.indexOf(sel) + 1;
+        vBtn.classList.add('selected');
+        vBtn.dataset.order = state.selected.indexOf(sel) + 1;
       }
-      valBtn.onclick = () => toggleSegment(`param_${i}`, param.value, `参数 ${param.key} 的值`);
-
-      item.appendChild(keySpan);
-      item.appendChild(valBtn);
-      paramArea.appendChild(item);
+      vBtn.onclick = () => toggleSegment(`param_${i}`, param.value, `参数 ${param.key}: ${param.value}`);
+      paramZone.appendChild(vBtn);
     });
-    area.appendChild(paramArea);
+    area.appendChild(paramZone);
   }
 }
 
@@ -865,7 +619,7 @@ function toggleSegment(id, value, label) {
   if (idx >= 0) {
     state.selected.splice(idx, 1);
   } else {
-    state.selected.push({ id, value, label, sliceMode: 'full', sliceN: 4 });
+    state.selected.push({ id, value, label, sliceMode: 'full', sliceN: 4, customRegex: '' });
   }
   state.appliedTplIndex = -1;
   renderAll();
@@ -878,7 +632,6 @@ function renderSelectedList() {
     list.innerHTML = '<div class="no-selected">尚未选择任何片段</div>';
     return;
   }
-
   list.innerHTML = '';
   state.selected.forEach((item, i) => {
     const div = document.createElement('div');
@@ -900,21 +653,17 @@ function renderSelectedList() {
     const preview = getExtractedValue(item);
     valDiv.innerHTML = `<span class="tag-full">${escHtml(item.value)}</span>` +
       (preview !== item.value ? ` → <span class="tag-prefix">${escHtml(preview)}</span>` : '');
-
     content.appendChild(labelDiv);
     content.appendChild(valDiv);
 
     // slice options
     const sliceDiv = document.createElement('div');
     sliceDiv.className = 'slice-options';
-
     const sliceLabel = document.createElement('span');
     sliceLabel.className = 'slice-label';
     sliceLabel.textContent = '提取方式:';
-
     const toggle = document.createElement('div');
     toggle.className = 'slice-toggle';
-
     ['full', 'prefix', 'suffix', 'custom'].forEach(mode => {
       const btn = document.createElement('button');
       btn.className = 'slice-opt' + (item.sliceMode === mode ? ' active' : '');
@@ -922,7 +671,6 @@ function renderSelectedList() {
       btn.onclick = () => { item.sliceMode = mode; renderAll(); };
       toggle.appendChild(btn);
     });
-
     sliceDiv.appendChild(sliceLabel);
     sliceDiv.appendChild(toggle);
 
@@ -930,26 +678,20 @@ function renderSelectedList() {
       const wrap = document.createElement('div');
       wrap.className = 'slice-input-wrap';
       const inp = document.createElement('input');
-      inp.type = 'number';
-      inp.className = 'slice-input';
-      inp.value = item.sliceN;
-      inp.min = 1;
-      inp.max = item.value.length;
+      inp.type = 'number'; inp.className = 'slice-input';
+      inp.value = item.sliceN; inp.min = 1; inp.max = item.value.length;
       inp.oninput = () => { item.sliceN = parseInt(inp.value) || 1; renderAll(); };
       const unit = document.createElement('span');
-      unit.className = 'slice-label';
-      unit.textContent = '位';
-      wrap.appendChild(inp);
-      wrap.appendChild(unit);
+      unit.className = 'slice-label'; unit.textContent = '位';
+      wrap.appendChild(inp); wrap.appendChild(unit);
       sliceDiv.appendChild(wrap);
     }
-
     if (item.sliceMode === 'custom') {
       const wrap = document.createElement('div');
       wrap.className = 'slice-input-wrap';
       const inp = document.createElement('input');
       inp.type = 'text';
-      inp.style.cssText = 'width:120px;padding:2px 6px;font-size:0.78rem;';
+      inp.style.cssText = 'width:140px;padding:2px 6px;font-size:0.78rem;';
       inp.className = 'slice-input';
       inp.placeholder = '正则，如 \\d+';
       inp.value = item.customRegex || '';
@@ -957,7 +699,6 @@ function renderSelectedList() {
       wrap.appendChild(inp);
       sliceDiv.appendChild(wrap);
     }
-
     content.appendChild(sliceDiv);
 
     const removeBtn = document.createElement('button');
@@ -972,23 +713,193 @@ function renderSelectedList() {
   });
 }
 
-// ─── 渲染变量提示chips ───────────────────────────────────
+// ─── 提取值预览 ──────────────────────────────────────────
+function getExtractedValue(item) {
+  const v = item.value;
+  if (item.sliceMode === 'prefix') return v.slice(0, item.sliceN);
+  if (item.sliceMode === 'suffix') return v.slice(-item.sliceN);
+  if (item.sliceMode === 'custom') return item.customRegex ? `(${item.customRegex})` : v;
+  return v;
+}
+
+// ─── 生成正则（关键：正确拼接 /#/ 部分）─────────────────
+function buildRegex() {
+  const p = state.parsed;
+  if (!p) return null;
+
+  let pattern = escapeRegex(p.protocol + '//');
+
+  // host
+  pattern += p.hostParts.map((part, i) => {
+    const sel = state.selected.find(s => s.id === `host_${i}`);
+    return sel ? buildCaptureGroup(sel) : escapeRegex(part);
+  }).join('\\.');
+
+  // pathname（# 之前的路径）
+  if (p.pathSegs.length > 0) {
+    pattern += '\\/';
+    pattern += p.pathSegs.map((seg, i) => {
+      const sel = state.selected.find(s => s.id === `path_${i}`);
+      return sel ? buildCaptureGroup(sel) : escapeRegex(seg);
+    }).join('\\/');
+  }
+
+  // hash 部分
+  if (p.hasHash) {
+    // 关键修复：
+    // 实际 URL 是 .com/#/path 或 .com/#!/path 或 .com/#anchor
+    // pathname 末尾是 "/" 时直接拼 "#prefix"，否则拼 "/#prefix"
+    // 最稳妥：用 /? 让斜杠可选，或直接用 .*# 跳过
+    // 这里采用精确拼法：pathname末尾 "/" 已被 pathSegs 处理掉，
+    // 所以我们在 # 前加可选的 /
+    pattern += '\\/?#' + escapeRegex(p.hashPrefix);
+
+    if (p.hashPathSegs.length > 0) {
+      pattern += p.hashPathSegs.map((seg, i) => {
+        const sel = state.selected.find(s => s.id === `hpath_${i}`);
+        return sel ? buildCaptureGroup(sel) : escapeRegex(seg);
+      }).join('\\/');
+    }
+
+    // hash 内的查询参数
+    if (p.hashParams.length > 0) {
+      const hasSelectedHParam = p.hashParams.some((_, i) => state.selected.find(s => s.id === `hparam_${i}`));
+      if (hasSelectedHParam) {
+        pattern += '\\?';
+        const selPatterns = [];
+        p.hashParams.forEach((param, i) => {
+          const sel = state.selected.find(s => s.id === `hparam_${i}`);
+          if (sel) selPatterns.push(escapeRegex(param.key + '=') + buildCaptureGroup(sel));
+        });
+        pattern += '(?:.*?[?&])?' + selPatterns.join('(?:&[^&]*)*&?');
+      } else {
+        pattern += '\\?' + p.hashParams.map(param => escapeRegex(param.key + '=' + param.value)).join('&');
+      }
+    }
+  }
+
+  // 普通 query 参数
+  if (p.params.length > 0) {
+    const hasSelectedParam = p.params.some((_, i) => state.selected.find(s => s.id === `param_${i}`));
+    if (hasSelectedParam) {
+      pattern += '\\?';
+      const selPatterns = [];
+      p.params.forEach((param, i) => {
+        const sel = state.selected.find(s => s.id === `param_${i}`);
+        if (sel) selPatterns.push(escapeRegex(param.key + '=') + buildCaptureGroup(sel));
+      });
+      pattern += '(?:.*?[?&])?' + selPatterns.join('(?:&[^&]*)*&?');
+    }
+  }
+
+  return pattern;
+}
+
+function buildCaptureGroup(sel) {
+  if (sel.sliceMode === 'full')   return `([^/?&#]+)`;
+  if (sel.sliceMode === 'prefix') return `([a-zA-Z0-9]{${sel.sliceN}})[^/?&#]*`;
+  if (sel.sliceMode === 'suffix') return `[^/?&#]*([a-zA-Z0-9]{${sel.sliceN}})`;
+  if (sel.sliceMode === 'custom') return `(${sel.customRegex || '[^/?&#]+'})`;
+  return `([^/?&#]+)`;
+}
+
+// ─── 推荐模板 ─────────────────────────────────────────────
+function generateRecommendedTemplates() {
+  const sel = state.selected;
+  if (sel.length === 0) return [];
+  const vars    = sel.map((_, i) => `$${i + 1}`);
+  const previews = sel.map(s => getExtractedValue(s));
+  const templates = [];
+
+  templates.push({ icon: '🔗', name: '连字符拼接',   pattern: vars.join('-'),  accent: '#60a5fa' });
+  templates.push({ icon: '🔤', name: '下划线拼接',   pattern: vars.join('_'),  accent: '#a78bfa' });
+  templates.push({ icon: '📌', name: '点号拼接',     pattern: vars.join('.'),  accent: '#f59e0b' });
+  templates.push({ icon: '📂', name: '路径格式',     pattern: vars.join('/'),  accent: '#34d399' });
+  templates.push({ icon: '📦', name: '括号包裹',     pattern: vars.map(v => `[${v}]`).join('-'), accent: '#fb923c' });
+
+  // hash 路径特化
+  const hashItems = sel.filter(s => s.id.startsWith('hpath_') || s.id.startsWith('hparam_'));
+  if (hashItems.length > 0) {
+    templates.push({ icon: '#️⃣', name: 'Hash路径连字符', pattern: vars.join('-'), accent: '#fbbf24' });
+  }
+
+  // 环境前缀
+  const envItem = sel.find(s => /fat|prod|uat|test|dev|qa/i.test(s.value));
+  if (envItem) {
+    const envIdx = sel.indexOf(envItem);
+    const others = vars.filter((_, i) => i !== envIdx);
+    if (others.length > 0) {
+      templates.push({ icon: '🌐', name: '环境前缀格式', pattern: `${vars[envIdx]}-${others.join('-')}`, accent: '#22d3ee' });
+    }
+  }
+
+  // 服务名前缀
+  if (state.parsed) {
+    const svc = state.parsed.hostParts[0];
+    if (svc && svc.length <= 12) {
+      templates.push({ icon: '🏷️', name: `服务名前缀 (${svc})`, pattern: `${svc}-${vars.join('-')}`, accent: '#e879f9' });
+    }
+  }
+
+  if (sel.length > 1) {
+    templates.push({ icon: '1️⃣', name: '仅第一个片段', pattern: '$1', accent: '#94a3b8' });
+  }
+
+  return templates;
+}
+
+function renderRecommendedTemplates() {
+  const container = document.getElementById('recommendedTpls');
+  const tpls = generateRecommendedTemplates();
+  if (tpls.length === 0) {
+    container.innerHTML = '<div class="no-tpl-hint">请先选择要提取的片段，系统将自动推荐模板</div>';
+    return;
+  }
+  container.innerHTML = '';
+  tpls.forEach((tpl, idx) => {
+    let resultPreview = tpl.pattern;
+    state.selected.forEach((item, i) => {
+      resultPreview = resultPreview.replace(new RegExp('\\$' + (i + 1), 'g'), getExtractedValue(item));
+    });
+    const card = document.createElement('div');
+    card.className = 'tpl-card' + (state.appliedTplIndex === idx ? ' applied' : '');
+    card.style.setProperty('--accent', tpl.accent);
+    card.innerHTML = `
+      <span class="tpl-icon">${tpl.icon}</span>
+      <div class="tpl-info">
+        <div class="tpl-name">${escHtml(tpl.name)}</div>
+        <div class="tpl-preview">${escHtml(tpl.pattern)}</div>
+      </div>
+      <div class="tpl-result">→ ${escHtml(resultPreview)}</div>
+      <button class="tpl-use-btn">${state.appliedTplIndex === idx ? '✓ 已应用' : '使用'}</button>
+    `;
+    card.querySelector('.tpl-use-btn').addEventListener('click', e => { e.stopPropagation(); applyTemplate(tpl.pattern, idx); });
+    card.addEventListener('click', () => applyTemplate(tpl.pattern, idx));
+    container.appendChild(card);
+  });
+}
+
+function applyTemplate(pattern, idx) {
+  state.template = pattern;
+  state.appliedTplIndex = idx;
+  document.getElementById('templateInput').value = pattern;
+  renderAll();
+}
+
+// ─── 变量 chips ───────────────────────────────────────────
 function renderVarChips() {
   const chips = document.getElementById('varChips');
   chips.innerHTML = '';
   if (state.selected.length === 0) return;
-
   const label = document.createElement('span');
   label.className = 'var-chip-label';
   label.textContent = '点击插入变量:';
   chips.appendChild(label);
-
   state.selected.forEach((item, i) => {
     const chip = document.createElement('span');
     chip.className = 'hint-chip';
     const preview = getExtractedValue(item);
     chip.innerHTML = `<span class="hint-chip-var">$${i + 1}</span><span class="hint-chip-val">→ ${escHtml(preview.length > 10 ? preview.slice(0, 10) + '…' : preview)}</span>`;
-    chip.title = `插入 $${i + 1}（${item.label}）`;
     chip.onclick = () => {
       const inp = document.getElementById('templateInput');
       const pos = inp.selectionStart;
@@ -1001,72 +912,16 @@ function renderVarChips() {
   });
 }
 
-// ─── 提取值 ──────────────────────────────────────────────
-function getExtractedValue(item) {
-  const v = item.value;
-  if (item.sliceMode === 'prefix') return v.slice(0, item.sliceN);
-  if (item.sliceMode === 'suffix') return v.slice(-item.sliceN);
-  if (item.sliceMode === 'custom') return item.customRegex ? `(${item.customRegex})` : v;
-  return v;
-}
-
-// ─── 生成正则 ─────────────────────────────────────────────
-function buildRegex() {
-  const p = state.parsed;
-  if (!p) return null;
-
-  let pattern = escapeRegex(p.protocol + '//');
-
-  const hostRegexParts = p.hostParts.map((part, i) => {
-    const sel = state.selected.find(s => s.id === `host_${i}`);
-    return sel ? buildCaptureGroup(sel) : escapeRegex(part);
-  });
-  pattern += hostRegexParts.join('\\.');
-
-  if (p.pathSegs.length > 0) {
-    pattern += '\\/';
-    pattern += p.pathSegs.map((seg, i) => {
-      const sel = state.selected.find(s => s.id === `path_${i}`);
-      return sel ? buildCaptureGroup(sel) : escapeRegex(seg);
-    }).join('\\/');
-  }
-
-  if (p.params.length > 0) {
-    const hasSelectedParam = p.params.some((_, i) => state.selected.find(s => s.id === `param_${i}`));
-    if (hasSelectedParam) {
-      pattern += '\\?';
-      const selectedParamPatterns = [];
-      p.params.forEach((param, i) => {
-        const sel = state.selected.find(s => s.id === `param_${i}`);
-        if (sel) selectedParamPatterns.push(escapeRegex(param.key + '=') + buildCaptureGroup(sel));
-      });
-      pattern += '(?:.*?[?&])?' + selectedParamPatterns.join('(?:&[^&]*)*&?');
-    } else {
-      pattern += '\\?' + p.params.map(param => escapeRegex(param.key + '=' + param.value)).join('&');
-    }
-  }
-
-  return pattern;
-}
-
-function buildCaptureGroup(sel) {
-  if (sel.sliceMode === 'full') return `([^/?&]+)`;
-  if (sel.sliceMode === 'prefix') return `([a-zA-Z0-9]{${sel.sliceN}})[^/?&]*`;
-  if (sel.sliceMode === 'suffix') return `[^/?&]*([a-zA-Z0-9]{${sel.sliceN}})`;
-  if (sel.sliceMode === 'custom') return `(${sel.customRegex || '[^/?&]+'})`;
-  return `([^/?&]+)`;
-}
-
 // ─── 渲染输出 ─────────────────────────────────────────────
 function renderOutput() {
   const box = document.getElementById('outputBox');
-  const regex = buildRegex();
-  const template = state.template;
-
   if (state.selected.length === 0) {
     box.innerHTML = '<div class="empty-hint">请先选择要提取的片段</div>';
     return;
   }
+
+  const regex    = buildRegex() || '';
+  const template = state.template;
 
   let preview = template;
   if (template) {
@@ -1079,33 +934,65 @@ function renderOutput() {
     <button class="copy-btn" onclick="copyAll()">复制全部</button>
     <div class="output-row">
       <span class="output-key">正则</span>
-      <span class="output-val" id="out-regex">${escHtml(regex || '')}</span>
+      <span class="output-val" id="out-regex-val">${escHtml(regex)}</span>
     </div>
-    <div class="output-row">
+    <div class="regex-copy-row">
+      <button class="copy-single-btn" onclick="copySingle('regex')">复制正则</button>
+      <button class="copy-single-btn" onclick="copySingle('tpl')">复制替换模板</button>
+      ${preview && template ? `<button class="copy-single-btn" onclick="copySingle('preview')">复制预览结果</button>` : ''}
+    </div>
+    <div class="output-row" style="margin-top:8px">
       <span class="output-key">替换为</span>
-      <span class="output-val replace-val">${escHtml(template || '(未设置模板，请在上方选择或输入)')}</span>
+      <span class="output-val replace-val" id="out-tpl-val">${escHtml(template || '(未设置模板)')}</span>
     </div>
     ${preview && template ? `
     <div class="divider"></div>
     <div class="output-row">
       <span class="output-key">预览输出</span>
-      <span class="output-val" style="color:#fbbf24">${escHtml(preview)}</span>
+      <span class="output-val" style="color:#fbbf24" id="out-preview-val">${escHtml(preview)}</span>
     </div>` : ''}
   `;
 
   updateSteps();
 }
 
-function copyAll() {
+// 单项复制
+window.copySingle = function(type) {
+  const map = {
+    regex:   () => buildRegex() || '',
+    tpl:     () => state.template,
+    preview: () => {
+      let p = state.template;
+      state.selected.forEach((item, i) => {
+        p = p.replace(new RegExp('\\$' + (i + 1), 'g'), getExtractedValue(item));
+      });
+      return p;
+    },
+  };
+  const text = map[type]?.() || '';
+  navigator.clipboard.writeText(text).then(() => {
+    // 找对应按钮短暂提示
+    const btns = document.querySelectorAll('.copy-single-btn');
+    btns.forEach(btn => {
+      if ((type === 'regex' && btn.textContent.includes('正则')) ||
+          (type === 'tpl'   && btn.textContent.includes('替换')) ||
+          (type === 'preview' && btn.textContent.includes('预览'))) {
+        const orig = btn.textContent;
+        btn.textContent = '✓ 已复制';
+        setTimeout(() => btn.textContent = orig, 1500);
+      }
+    });
+  });
+};
+
+window.copyAll = function() {
   const regex = buildRegex() || '';
-  const tpl = state.template;
-  navigator.clipboard.writeText(`正则: ${regex}\n替换: ${tpl}`).then(() => {
+  navigator.clipboard.writeText(`正则: ${regex}\n替换: ${state.template}`).then(() => {
     const btn = document.querySelector('.copy-btn');
     if (btn) { btn.textContent = '✓ 已复制'; setTimeout(() => btn.textContent = '复制全部', 1500); }
   });
-}
+};
 
-// ─── 步骤更新 ─────────────────────────────────────────────
 function updateSteps() {
   document.getElementById('step1').classList.toggle('active', !!state.parsed);
   document.getElementById('step2').classList.toggle('active', state.selected.length > 0);
@@ -1113,11 +1000,9 @@ function updateSteps() {
   document.getElementById('step4').classList.toggle('active', state.selected.length > 0 && !!state.template);
 }
 
-// ─── 工具函数 ─────────────────────────────────────────────
 function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-function escHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function escHtml(s)     { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
-// ─── 统一渲染 ─────────────────────────────────────────────
 function renderAll() {
   renderSegments();
   renderSelectedList();
@@ -1127,25 +1012,25 @@ function renderAll() {
 }
 
 // ─── 事件绑定 ─────────────────────────────────────────────
-document.getElementById('urlInput').addEventListener('input', (e) => {
-  state.rawUrl = e.target.value.trim();
-  state.parsed = parseUrl(state.rawUrl);
-  state.selected = [];
-  state.template = '';
+document.getElementById('urlInput').addEventListener('input', e => {
+  state.rawUrl    = e.target.value.trim();
+  state.parsed    = parseUrl(state.rawUrl);
+  state.selected  = [];
+  state.template  = '';
   state.appliedTplIndex = -1;
   document.getElementById('templateInput').value = '';
   renderAll();
 });
 
-document.getElementById('templateInput').addEventListener('input', (e) => {
+document.getElementById('templateInput').addEventListener('input', e => {
   state.template = e.target.value;
   state.appliedTplIndex = -1;
   renderOutput();
   renderRecommendedTemplates();
 });
 
-// ─── 初始示例 ─────────────────────────────────────────────
-const demo = 'https://vbooking.ctrip.fat29.qa.nt.ctripcorp.com/ivbk/vendor/saleControlMerge?from=vbk&productId=8520143&isTab=1';
+// ─── 初始示例（hash 路由 URL）────────────────────────────
+const demo = 'https://contract.mobile.flight.ctripcorp.com/#/operation-detail/2974/272/getRecalcTaskStatus?lang=zh-CN';
 document.getElementById('urlInput').value = demo;
 state.rawUrl = demo;
 state.parsed = parseUrl(demo);
