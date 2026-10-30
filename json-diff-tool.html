@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON Diff 对比工具</title>
+<style>
+  :root{
+    --c-added-bg:#e6ffed; --c-added-border:#22863a; --c-added-text:#1a7f37;
+    --c-removed-bg:#ffeef0; --c-removed-border:#cb2431; --c-removed-text:#cb2431;
+    --c-changed-bg:#fff8e1; --c-changed-border:#b45309; --c-changed-text:#9a5b00;
+    --c-type-bg:#f5f0ff; --c-type-border:#6f42c1; --c-type-text:#6f42c1;
+    --c-current:#2563eb;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0; padding:0; background:#f5f6f8; color:#1f2328;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .app{ max-width:1400px; margin:0 auto; padding:20px 24px 48px; }
+  header{ margin-bottom:16px; }
+  header h1{ font-size:20px; margin:0 0 4px; }
+  header p{ margin:0; color:#636c76; font-size:13px; }
+
+  .io{ display:flex; gap:16px; margin-bottom:12px; }
+  .io-col{ flex:1 1 50%; min-width:0; background:#fff; border:1px solid #d9dee3; border-radius:8px; overflow:hidden; }
+  .io-head{ display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:#f0f2f5; border-bottom:1px solid #d9dee3; font-size:13px; font-weight:600; }
+  .io-actions{ display:flex; gap:6px; align-items:center; }
+
+  .editor-wrap{ position:relative; }
+  .editor-wrap textarea, .editor-wrap .editor-highlight{
+    display:block; box-sizing:border-box; margin:0; width:100%; height:160px;
+    padding:10px 12px; font:12.5px/1.5 "SF Mono", Menlo, Consolas, monospace;
+    white-space:pre-wrap; word-break:break-word; overflow-wrap:break-word;
+  }
+  .editor-wrap textarea{
+    position:relative; z-index:2; border:none; outline:none; resize:vertical;
+    background:transparent; color:transparent; caret-color:#1f2328;
+  }
+  .editor-wrap textarea::selection{ background:#bcd4f6; }
+  .editor-wrap .editor-highlight{
+    position:absolute; inset:0; z-index:1; overflow:hidden; pointer-events:none;
+    color:#1f2328; background:#fff;
+  }
+  .editor-current-range{
+    background: rgba(37,99,235,.12); box-shadow: inset 0 0 0 1px rgba(37,99,235,.55);
+    border-radius:3px;
+  }
+  .file-name{ margin-left:8px; font-weight:400; font-size:12px; color:#636c76; }
+
+  .btn-sm, .file-btn{
+    font-size:12px; padding:4px 10px; border-radius:5px; border:1px solid #d9dee3;
+    background:#fff; color:#1f2328; cursor:pointer; white-space:nowrap;
+  }
+  .btn-sm:hover, .file-btn:hover{ background:#eef1f4; }
+  .file-btn{ position:relative; overflow:hidden; display:inline-block; }
+  .file-btn input[type=file]{ position:absolute; inset:0; opacity:0; cursor:pointer; }
+
+  .toolbar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+  .btn-primary{
+    font-size:13px; font-weight:600; padding:7px 18px; border-radius:6px; border:none;
+    background:var(--c-current); color:#fff; cursor:pointer;
+  }
+  .btn-primary:hover{ background:#1d4ed8; }
+  .toolbar .hint{ color:#8a919c; font-size:12px; }
+  .error{ color:var(--c-removed-text); background:var(--c-removed-bg); border:1px solid var(--c-removed-border);
+    padding:6px 10px; border-radius:6px; font-size:12.5px; }
+
+  .result{ background:#fff; border:1px solid #d9dee3; border-radius:8px; overflow:hidden; }
+  .summary-bar{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+    padding:10px 14px; border-bottom:1px solid #d9dee3; background:#fafbfc;
+    position:sticky; top:0; z-index:5;
+  }
+  .summary-stats{ display:flex; align-items:center; gap:10px; font-size:13px; flex-wrap:wrap; }
+  .summary-stats strong{ font-size:16px; }
+  .chip{ font-size:11.5px; padding:2px 8px; border-radius:999px; border:1px solid transparent; }
+  .chip-added{ background:var(--c-added-bg); color:var(--c-added-text); border-color:var(--c-added-border); }
+  .chip-removed{ background:var(--c-removed-bg); color:var(--c-removed-text); border-color:var(--c-removed-border); }
+  .chip-changed{ background:var(--c-changed-bg); color:var(--c-changed-text); border-color:var(--c-changed-border); }
+  .chip-type{ background:var(--c-type-bg); color:var(--c-type-text); border-color:var(--c-type-border); }
+
+  .summary-nav{ display:flex; align-items:center; gap:8px; }
+  .summary-nav button{
+    font-size:12.5px; padding:5px 12px; border-radius:6px; border:1px solid #d9dee3; background:#fff; cursor:pointer;
+  }
+  .summary-nav button:hover:not(:disabled){ background:#eef1f4; }
+  .summary-nav button:disabled{ opacity:.4; cursor:not-allowed; }
+  #nav-counter{ font-size:12.5px; color:#444c56; min-width:64px; text-align:center; }
+
+  .diff-list{ max-height:180px; overflow:auto; border-bottom:1px solid #d9dee3; }
+  .diff-row{
+    display:flex; align-items:center; gap:10px; padding:6px 14px; font-size:12.5px; cursor:pointer;
+    border-bottom:1px solid #f0f2f5;
+  }
+  .diff-row:hover{ background:#f5f8ff; }
+  .diff-row.active{ background:#eaf1ff; box-shadow: inset 2px 0 0 var(--c-current); }
+  .diff-row .tag{ flex:0 0 auto; font-size:11px; padding:1px 7px; border-radius:4px; color:#fff; }
+  .tag-added{ background:var(--c-added-border); }
+  .tag-removed{ background:var(--c-removed-border); }
+  .tag-changed{ background:var(--c-changed-border); }
+  .tag-type{ background:var(--c-type-border); }
+  .diff-row .path{ flex:0 0 auto; font-family:"SF Mono", Menlo, monospace; font-weight:600; color:#1f2328; max-width:260px; overflow:hidden; text-overflow:ellipsis; }
+  .diff-row .preview{ flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#636c76; font-family:"SF Mono", Menlo, monospace; }
+  .prev-old{ color:var(--c-removed-text); } .prev-new{ color:var(--c-added-text); }
+  .prev-added{ color:var(--c-added-text); } .prev-removed{ color:var(--c-removed-text); }
+  .diff-empty{ padding:14px; text-align:center; color:var(--c-added-text); font-size:13px; }
+
+  .panels{ display:flex; }
+  .panel{ flex:1 1 50%; min-width:0; border-right:1px solid #d9dee3; }
+  .panel:last-child{ border-right:none; }
+  .panel-head{ padding:7px 12px; font-size:12.5px; font-weight:600; background:#fafbfc; border-bottom:1px solid #d9dee3; color:#444c56; }
+  .panel-body{
+    max-height:58vh; overflow:auto; font:12.5px/1.6 "SF Mono", Menlo, Consolas, monospace;
+    counter-reset: ln; padding:4px 0;
+  }
+  .line{ display:flex; align-items:flex-start; }
+  .line .gutter{ flex:0 0 42px; text-align:right; margin-right:10px; color:#9aa5b1; user-select:none; padding-right:4px; }
+  .line .gutter::before{ counter-increment: ln; content: counter(ln); }
+  .line .code{ flex:1 1 auto; white-space:pre; padding-right:12px; word-break:break-all; }
+  .line.diff-added{ background:var(--c-added-bg); box-shadow: inset 3px 0 0 var(--c-added-border); }
+  .line.diff-removed{ background:var(--c-removed-bg); box-shadow: inset 3px 0 0 var(--c-removed-border); }
+  .line.diff-changed{ background:var(--c-changed-bg); box-shadow: inset 3px 0 0 var(--c-changed-border); }
+  .line.diff-type{ background:var(--c-type-bg); box-shadow: inset 3px 0 0 var(--c-type-border); }
+  .line[data-diffid]{ cursor:pointer; }
+  .line.current{ box-shadow: inset 0 0 0 2px var(--c-current); }
+
+  .jd-key{ color:#953800; }
+  .jd-string{ color:#116329; }
+  .jd-number{ color:#005cc5; }
+  .jd-boolean{ color:#6f42c1; }
+  .jd-null{ color:#6f42c1; }
+  .jd-punc{ color:#444c56; }
+
+  .legend{ display:flex; gap:14px; align-items:center; font-size:11.5px; color:#636c76; padding:8px 14px; border-top:1px solid #d9dee3; background:#fafbfc; flex-wrap:wrap; }
+  .legend span{ display:inline-flex; align-items:center; gap:5px; }
+  .legend i{ width:10px; height:10px; border-radius:2px; display:inline-block; }
+  .legend .i-added{ background:var(--c-added-border); } .legend .i-removed{ background:var(--c-removed-border); }
+  .legend .i-changed{ background:var(--c-changed-border); } .legend .i-type{ background:var(--c-type-border); }
+
+  @media (max-width:900px){
+    .io{ flex-direction:column; }
+    .panels{ flex-direction:column; }
+    .panel{ border-right:none; border-bottom:1px solid #d9dee3; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>JSON Diff 对比工具</h1>
+    <p>选择 JSON 文件或直接粘贴，自动按字段名排序后对比；对象/数组字段只要整体不同即计为一个差异点，可用上/下按钮或点击正文中的高亮区域逐个切换。</p>
+  </header>
+
+  <section class="io">
+    <div class="io-col" id="col-left">
+      <div class="io-head">
+        <span>原始 JSON（Left）<span class="file-name" id="filename-left"></span></span>
+        <div class="io-actions">
+          <label class="file-btn">选择文件<input type="file" id="file-left" accept=".json,.txt,application/json"></label>
+          <button class="btn-sm" id="clear-left">清空</button>
+        </div>
+      </div>
+      <div class="editor-wrap">
+        <pre class="editor-highlight" id="highlight-left" aria-hidden="true"></pre>
+        <textarea id="input-left" placeholder="在此粘贴 JSON，或点击“选择文件”上传 .json 文件" spellcheck="false"></textarea>
+      </div>
+    </div>
+    <div class="io-col" id="col-right">
+      <div class="io-head">
+        <span>对比 JSON（Right）<span class="file-name" id="filename-right"></span></span>
+        <div class="io-actions">
+          <label class="file-btn">选择文件<input type="file" id="file-right" accept=".json,.txt,application/json"></label>
+          <button class="btn-sm" id="clear-right">清空</button>
+        </div>
+      </div>
+      <div class="editor-wrap">
+        <pre class="editor-highlight" id="highlight-right" aria-hidden="true"></pre>
+        <textarea id="input-right" placeholder="在此粘贴 JSON，或点击“选择文件”上传 .json 文件" spellcheck="false"></textarea>
+      </div>
+    </div>
+  </section>
+
+  <section class="toolbar">
+    <button class="btn-primary" id="btn-compare">对比 Diff</button>
+    <button class="btn-sm" id="btn-swap">⇄ 交换左右</button>
+    <button class="btn-sm" id="btn-clear-all">清空全部</button>
+    <span class="hint">内容变化会自动重新对比；对象字段按名称自动排序，数组保持原始顺序以保证按下标比较准确。</span>
+    <span class="error" id="error-box" hidden></span>
+  </section>
+
+  <section class="result" id="result" hidden>
+    <div class="summary-bar">
+      <div class="summary-stats">
+        <strong id="diff-total">0</strong> 处不同
+        <span class="chip chip-added">新增 <b id="cnt-added">0</b></span>
+        <span class="chip chip-removed">删除 <b id="cnt-removed">0</b></span>
+        <span class="chip chip-changed">修改 <b id="cnt-changed">0</b></span>
+        <span class="chip chip-type">类型变更 <b id="cnt-type">0</b></span>
+      </div>
+      <div class="summary-nav">
+        <button id="btn-prev" title="上一个不同点">▲ 上一个</button>
+        <span id="nav-counter">0 / 0</span>
+        <button id="btn-next" title="下一个不同点">▼ 下一个</button>
+      </div>
+    </div>
+    <div class="diff-list" id="diff-list"></div>
+    <div class="panels">
+      <div class="panel" id="panel-left">
+        <div class="panel-head">原始 JSON（已排序）</div>
+        <div class="panel-body" id="body-left"></div>
+      </div>
+      <div class="panel" id="panel-right">
+        <div class="panel-head">对比 JSON（已排序）</div>
+        <div class="panel-body" id="body-right"></div>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="i-added"></i>新增字段</span>
+      <span><i class="i-removed"></i>删除字段</span>
+      <span><i class="i-changed"></i>值被修改</span>
+      <span><i class="i-type"></i>类型变更</span>
+      <span>· 点击上方列表行或正文中的高亮区域可直接跳转；方向键 ↑↓ 也可切换</span>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- DOM refs ----------
+  var inputLeft = document.getElementById('input-left');
+  var inputRight = document.getElementById('input-right');
+  var highlightLeft = document.getElementById('highlight-left');
+  var highlightRight = document.getElementById('highlight-right');
+  var fileLeft = document.getElementById('file-left');
+  var fileRight = document.getElementById('file-right');
+  var filenameLeft = document.getElementById('filename-left');
+  var filenameRight = document.getElementById('filename-right');
+  var clearLeftBtn = document.getElementById('clear-left');
+  var clearRightBtn = document.getElementById('clear-right');
+  var btnCompare = document.getElementById('btn-compare');
+  var btnSwap = document.getElementById('btn-swap');
+  var btnClearAll = document.getElementById('btn-clear-all');
+  var errorBox = document.getElementById('error-box');
+  var resultSection = document.getElementById('result');
+  var diffListEl = document.getElementById('diff-list');
+  var bodyLeftEl = document.getElementById('body-left');
+  var bodyRightEl = document.getElementById('body-right');
+  var btnPrev = document.getElementById('btn-prev');
+  var btnNext = document.getElementById('btn-next');
+  var navCounter = document.getElementById('nav-counter');
+  var diffTotalEl = document.getElementById('diff-total');
+  var countEls = { added: document.getElementById('cnt-added'), removed: document.getElementById('cnt-removed'),
+                   changed: document.getElementById('cnt-changed'), type: document.getElementById('cnt-type') };
+
+  var currentDiffs = [];
+  var currentIndex = -1;
+  var leftPosMap = null, rightPosMap = null;
+
+  var KIND_LABEL = { added:'新增', removed:'删除', changed:'修改', type:'类型变更' };
+
+  // ---------- helpers ----------
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  // ---------- 输入框实时语法高亮（textarea 透明叠在同字体的 pre 层上） ----------
+  var JSON_TOKEN_RE = /("(?:\\.|[^"\\])*"(?=\s*:))|("(?:\\.|[^"\\])*")|\b(true|false|null)\b|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;
+  function highlightJson(text){
+    // 先在原始文本上切分 token，再分别转义，避免转义后的 &quot; 导致引号正则失效
+    var html = '';
+    var lastIndex = 0;
+    text.replace(JSON_TOKEN_RE, function(m, key, str, kw, num, offset){
+      html += escapeHtml(text.slice(lastIndex, offset));
+      if (key) html += '<span class="jd-key">' + escapeHtml(key) + '</span>';
+      else if (str) html += '<span class="jd-string">' + escapeHtml(str) + '</span>';
+      else if (kw) html += '<span class="' + (kw === 'null' ? 'jd-null' : 'jd-boolean') + '">' + kw + '</span>';
+      else if (num !== undefined) html += '<span class="jd-number">' + num + '</span>';
+      lastIndex = offset + m.length;
+      return m;
+    });
+    html += escapeHtml(text.slice(lastIndex));
+    // 保证末尾换行时高度与 textarea 一致
+    if (/\n$/.test(text)) html += '\n';
+    return html;
+  }
+  function refreshHighlight(textarea, pre){
+    pre.innerHTML = highlightJson(textarea.value);
+    pre.scrollTop = textarea.scrollTop;
+    pre.scrollLeft = textarea.scrollLeft;
+  }
+  function wireEditorHighlight(textarea, pre){
+    textarea.addEventListener('input', function(){ refreshHighlight(textarea, pre); });
+    textarea.addEventListener('scroll', function(){ pre.scrollTop = textarea.scrollTop; pre.scrollLeft = textarea.scrollLeft; });
+    refreshHighlight(textarea, pre);
+  }
+  function setEditorValue(textarea, pre, value){
+    textarea.value = value;
+    refreshHighlight(textarea, pre);
+  }
+
+  // ---------- 点击下方差异时，联动滚动/高亮上方输入框中的对应字段 ----------
+  // 在原始（未排序）文本上做一遍轻量解析，记录每个字段/数组元素的字符范围，用于与 diff 的路径 id 对齐
+  function buildPositionMap(text){
+    var map = new Map();
+    var i = 0, n = text.length;
+    function skipWs(){ while (i < n && /\s/.test(text[i])) i++; }
+    function parseString(){
+      var start = i; i++;
+      while (i < n){
+        if (text[i] === '\\'){ i += 2; continue; }
+        if (text[i] === '"'){ i++; break; }
+        i++;
+      }
+      return text.slice(start, i);
+    }
+    function parseValue(path){
+      skipWs();
+      var ch = text[i];
+      if (ch === '{'){
+        i++; skipWs();
+        if (text[i] === '}'){ i++; return; }
+        while (i < n){
+          skipWs();
+          var keyRaw = parseString();
+          var key;
+          try { key = JSON.parse(keyRaw); } catch (e) { key = keyRaw.slice(1, -1); }
+          skipWs();
+          if (text[i] === ':') i++;
+          skipWs();
+          var valueStart = i;
+          parseValue(path.concat('k:' + key));
+          map.set(encodePath(path.concat('k:' + key)), { start: valueStart, end: i });
+          skipWs();
+          if (text[i] === ','){ i++; continue; }
+          if (text[i] === '}'){ i++; break; }
+          break;
+        }
+      } else if (ch === '['){
+        i++; skipWs();
+        if (text[i] === ']'){ i++; return; }
+        var idx = 0;
+        while (i < n){
+          skipWs();
+          var elStart = i;
+          parseValue(path.concat('i:' + idx));
+          map.set(encodePath(path.concat('i:' + idx)), { start: elStart, end: i });
+          idx++;
+          skipWs();
+          if (text[i] === ','){ i++; continue; }
+          if (text[i] === ']'){ i++; break; }
+          break;
+        }
+      } else if (ch === '"'){
+        parseString();
+      } else {
+        while (i < n && !/[,\]\}\s]/.test(text[i])) i++;
+      }
+    }
+    skipWs();
+    if (i < n) parseValue([]);
+    return map;
+  }
+
+  function tokenizeJson(text){
+    var html = '';
+    var lastIndex = 0;
+    text.replace(JSON_TOKEN_RE, function(m, key, str, kw, num, offset){
+      html += escapeHtml(text.slice(lastIndex, offset));
+      if (key) html += '<span class="jd-key">' + escapeHtml(key) + '</span>';
+      else if (str) html += '<span class="jd-string">' + escapeHtml(str) + '</span>';
+      else if (kw) html += '<span class="' + (kw === 'null' ? 'jd-null' : 'jd-boolean') + '">' + kw + '</span>';
+      else if (num !== undefined) html += '<span class="jd-number">' + num + '</span>';
+      lastIndex = offset + m.length;
+      return m;
+    });
+    html += escapeHtml(text.slice(lastIndex));
+    return html;
+  }
+
+  function renderEditorRange(textarea, pre, range){
+    var text = textarea.value;
+    var html = tokenizeJson(text.slice(0, range.start)) +
+      '<span class="editor-current-range">' + tokenizeJson(text.slice(range.start, range.end)) + '</span>' +
+      tokenizeJson(text.slice(range.end));
+    if (/\n$/.test(text)) html += '\n';
+    pre.innerHTML = html;
+    var marker = pre.querySelector('.editor-current-range');
+    if (marker){
+      var target = Math.max(0, marker.offsetTop - pre.clientHeight / 2 + marker.offsetHeight / 2);
+      textarea.scrollTop = target;
+      pre.scrollTop = target;
+    }
+  }
+
+  function syncEditorToDiff(path, textarea, pre, posMap){
+    var r = posMap ? posMap.get(encodePath(path)) : null;
+    if (r) renderEditorRange(textarea, pre, r);
+    else refreshHighlight(textarea, pre);
+  }
+
+  function categorize(v){
+    if (v === null) return 'null';
+    if (Array.isArray(v)) return 'array';
+    return typeof v; // 'object' | 'string' | 'number' | 'boolean'
+  }
+
+  function sortDeep(v){
+    if (Array.isArray(v)) return v.map(sortDeep);
+    if (v && typeof v === 'object'){
+      var out = {};
+      Object.keys(v).sort(function(a,b){ return a.localeCompare(b, 'zh-Hans-CN', { numeric:true }); })
+        .forEach(function(k){ out[k] = sortDeep(v[k]); });
+      return out;
+    }
+    return v;
+  }
+
+  function encodePath(path){ return path.join('\u0001'); }
+
+  function pathLabel(path){
+    if (!path.length) return '(根节点)';
+    var out = '';
+    path.forEach(function(seg){
+      if (seg.slice(0,2) === 'k:') out += (out ? '.' : '') + seg.slice(2);
+      else out += '[' + seg.slice(2) + ']';
+    });
+    return out;
+  }
+
+  function shortVal(v){
+    if (v === undefined) return '';
+    var s;
+    try { s = JSON.stringify(v); } catch (e) { s = String(v); }
+    if (s === undefined) s = 'undefined';
+    if (s.length > 60) s = s.slice(0, 57) + '...';
+    return s;
+  }
+
+  var TYPE_LABEL = { object:'对象', array:'数组', string:'字符串', number:'数字', boolean:'布尔', 'null':'null' };
+  function typeLabel(v){ return TYPE_LABEL[categorize(v)] + ' ' + shortVal(v); }
+
+  function previewHtml(d){
+    switch (d.kind){
+      case 'added':   return '<span class="prev-added">+ ' + escapeHtml(shortVal(d.right)) + '</span>';
+      case 'removed': return '<span class="prev-removed">- ' + escapeHtml(shortVal(d.left)) + '</span>';
+      case 'changed': return '<span class="prev-old">' + escapeHtml(shortVal(d.left)) + '</span> → <span class="prev-new">' + escapeHtml(shortVal(d.right)) + '</span>';
+      case 'type':    return '<span class="prev-old">' + escapeHtml(typeLabel(d.left)) + '</span> → <span class="prev-new">' + escapeHtml(typeLabel(d.right)) + '</span>';
+    }
+    return '';
+  }
+
+  // 核心约定：对象 / 数组字段一旦在某个路径上整体类型不同、或只在一侧存在，
+  // 就把该字段（包含其全部子内容）视为“一个”差异点，不再往下拆分子差异。
+  function diffTree(left, right, path, out){
+    var lk = categorize(left), rk = categorize(right);
+    if (lk !== rk){
+      out.push({ path: path.slice(), kind:'type', left: left, right: right });
+      return;
+    }
+    if (lk === 'object'){
+      var keys = Array.from(new Set(Object.keys(left).concat(Object.keys(right))))
+        .sort(function(a,b){ return a.localeCompare(b, 'zh-Hans-CN', { numeric:true }); });
+      keys.forEach(function(k){
+        var childPath = path.concat('k:' + k);
+        var hasL = Object.prototype.hasOwnProperty.call(left, k);
+        var hasR = Object.prototype.hasOwnProperty.call(right, k);
+        if (hasL && hasR) diffTree(left[k], right[k], childPath, out);
+        else if (hasL) out.push({ path: childPath, kind:'removed', left: left[k] });
+        else out.push({ path: childPath, kind:'added', right: right[k] });
+      });
+    } else if (lk === 'array'){
+      var len = Math.max(left.length, right.length);
+      for (var i = 0; i < len; i++){
+        var cp = path.concat('i:' + i);
+        var hL = i < left.length, hR = i < right.length;
+        if (hL && hR) diffTree(left[i], right[i], cp, out);
+        else if (hL) out.push({ path: cp, kind:'removed', left: left[i] });
+        else out.push({ path: cp, kind:'added', right: right[i] });
+      }
+    } else {
+      if (left !== right) out.push({ path: path.slice(), kind:'changed', left: left, right: right });
+    }
+  }
+
+  function keyHtml(k){
+    return '<span class="jd-key">"' + escapeHtml(k) + '"</span><span class="jd-punc">: </span>';
+  }
+  function primitiveHtml(v){
+    if (v === null) return '<span class="jd-null">null</span>';
+    var t = typeof v;
+    if (t === 'string') return '<span class="jd-string">' + escapeHtml(JSON.stringify(v)) + '</span>';
+    if (t === 'number') return '<span class="jd-number">' + v + '</span>';
+    if (t === 'boolean') return '<span class="jd-boolean">' + v + '</span>';
+    return escapeHtml(String(v));
+  }
+
+  function makeLine(depth, html, kind, diffId){ return { depth: depth, html: html, kind: kind, diffId: diffId }; }
+
+  function buildLines(value, keyLabelHtml, path, trailingComma, depth, diffMap, inheritedDiff, out){
+    var pathId = encodePath(path);
+    var myDiff = inheritedDiff || diffMap.get(pathId) || null;
+    var kind = categorize(value);
+    var diffKind = myDiff ? myDiff.kind : null;
+    var diffId = myDiff ? myDiff.id : null;
+
+    if (kind === 'object'){
+      var keys = Object.keys(value);
+      if (!keys.length){
+        out.push(makeLine(depth, keyLabelHtml + '{}' + trailingComma, diffKind, diffId));
+      } else {
+        out.push(makeLine(depth, keyLabelHtml + '{', diffKind, diffId));
+        keys.forEach(function(k, i){
+          buildLines(value[k], keyHtml(k), path.concat('k:' + k), i < keys.length - 1 ? ',' : '', depth + 1, diffMap, myDiff, out);
+        });
+        out.push(makeLine(depth, '}' + trailingComma, diffKind, diffId));
+      }
+    } else if (kind === 'array'){
+      if (!value.length){
+        out.push(makeLine(depth, keyLabelHtml + '[]' + trailingComma, diffKind, diffId));
+      } else {
+        out.push(makeLine(depth, keyLabelHtml + '[', diffKind, diffId));
+        value.forEach(function(v, i){
+          buildLines(v, '', path.concat('i:' + i), i < value.length - 1 ? ',' : '', depth + 1, diffMap, myDiff, out);
+        });
+        out.push(makeLine(depth, ']' + trailingComma, diffKind, diffId));
+      }
+    } else {
+      out.push(makeLine(depth, keyLabelHtml + primitiveHtml(value) + trailingComma, diffKind, diffId));
+    }
+  }
+
+  function lineHtml(l){
+    var cls = ['line'];
+    if (l.kind) cls.push('diff-' + l.kind);
+    var attr = l.kind ? ' data-diffid="' + l.diffId + '"' : '';
+    return '<div class="' + cls.join(' ') + '"' + attr + '><span class="gutter"></span><span class="code" style="padding-left:' +
+      (l.depth * 18) + 'px">' + l.html + '</span></div>';
+  }
+
+  function renderPanel(container, lines){
+    container.innerHTML = lines.map(lineHtml).join('');
+  }
+
+  function describeJsonError(text, e){
+    var m = /position (\d+)/.exec(e.message);
+    if (!m) return e.message;
+    var pos = Number(m[1]);
+    var head = text.slice(0, pos);
+    var lines = head.split('\n');
+    var line = lines.length;
+    var col = lines[lines.length - 1].length + 1;
+    return e.message + '（第 ' + line + ' 行，第 ' + col + ' 列）';
+  }
+
+  function showError(msg){
+    errorBox.hidden = false;
+    errorBox.textContent = msg;
+  }
+  function hideError(){ errorBox.hidden = true; errorBox.textContent = ''; }
+
+  // 直接计算目标元素相对滚动容器的位置并赋值 scrollTop，不依赖 scrollIntoView 的平滑滚动动画
+  // （大文档/面板不可见时，smooth 动画可能长时间不推进，导致“点了却没跳过去”）
+  function scrollElementIntoContainer(container, el){
+    if (!container || !el) return;
+    var elRect = el.getBoundingClientRect();
+    var contRect = container.getBoundingClientRect();
+    var elTopInContent = (elRect.top - contRect.top) + container.scrollTop;
+    var target = elTopInContent - (container.clientHeight / 2) + (elRect.height / 2);
+    var max = container.scrollHeight - container.clientHeight;
+    container.scrollTop = Math.max(0, Math.min(target, max));
+  }
+
+  // ---------- selection / navigation ----------
+  function selectDiff(idx){
+    var total = currentDiffs.length;
+    if (!total) return;
+    idx = ((idx % total) + total) % total;
+    currentIndex = idx;
+
+    document.querySelectorAll('.line.current').forEach(function(el){ el.classList.remove('current'); });
+    document.querySelectorAll('.diff-row.active').forEach(function(el){ el.classList.remove('active'); });
+
+    var d = currentDiffs[idx];
+    var leftEls = bodyLeftEl.querySelectorAll('[data-diffid="' + d.id + '"]');
+    var rightEls = bodyRightEl.querySelectorAll('[data-diffid="' + d.id + '"]');
+    leftEls.forEach(function(el){ el.classList.add('current'); });
+    rightEls.forEach(function(el){ el.classList.add('current'); });
+    if (leftEls[0]) scrollElementIntoContainer(bodyLeftEl, leftEls[0]);
+    if (rightEls[0]) scrollElementIntoContainer(bodyRightEl, rightEls[0]);
+
+    syncEditorToDiff(d.path, inputLeft, highlightLeft, leftPosMap);
+    syncEditorToDiff(d.path, inputRight, highlightRight, rightPosMap);
+
+    var row = diffListEl.querySelector('[data-idx="' + idx + '"]');
+    if (row){
+      row.classList.add('active');
+      scrollElementIntoContainer(diffListEl, row);
+    }
+
+    navCounter.textContent = (idx + 1) + ' / ' + total;
+  }
+
+  function renderSummary(diffs){
+    if (!diffs.length){
+      diffListEl.innerHTML = '<div class="diff-empty">✅ 两个 JSON 完全一致，没有发现不同</div>';
+    } else {
+      diffListEl.innerHTML = diffs.map(function(d, i){
+        var label = pathLabel(d.path);
+        return '<div class="diff-row" data-idx="' + i + '">' +
+          '<span class="tag tag-' + d.kind + '">' + KIND_LABEL[d.kind] + '</span>' +
+          '<span class="path" title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</span>' +
+          '<span class="preview">' + previewHtml(d) + '</span></div>';
+      }).join('');
+      diffListEl.querySelectorAll('.diff-row').forEach(function(row){
+        row.addEventListener('click', function(){ selectDiff(Number(row.dataset.idx)); });
+      });
+    }
+    var counts = { added:0, removed:0, changed:0, type:0 };
+    diffs.forEach(function(d){ counts[d.kind]++; });
+    diffTotalEl.textContent = diffs.length;
+    Object.keys(countEls).forEach(function(k){ countEls[k].textContent = counts[k]; });
+    btnPrev.disabled = btnNext.disabled = !diffs.length;
+    navCounter.textContent = diffs.length ? '1 / ' + diffs.length : '0 / 0';
+  }
+
+  // ---------- main compare flow ----------
+  function runCompare(){
+    hideError();
+    var lt = inputLeft.value.trim();
+    var rt = inputRight.value.trim();
+    leftPosMap = rightPosMap = null;
+    if (!lt || !rt){
+      resultSection.hidden = true;
+      refreshHighlight(inputLeft, highlightLeft); refreshHighlight(inputRight, highlightRight);
+      return;
+    }
+
+    var leftVal, rightVal;
+    try { leftVal = JSON.parse(lt); }
+    catch (e) { showError('原始 JSON 解析失败：' + describeJsonError(lt, e)); resultSection.hidden = true; return; }
+    try { rightVal = JSON.parse(rt); }
+    catch (e) { showError('对比 JSON 解析失败：' + describeJsonError(rt, e)); resultSection.hidden = true; return; }
+
+    leftPosMap = buildPositionMap(inputLeft.value);
+    rightPosMap = buildPositionMap(inputRight.value);
+
+    var sortedLeft = sortDeep(leftVal);
+    var sortedRight = sortDeep(rightVal);
+
+    var diffs = [];
+    diffTree(sortedLeft, sortedRight, [], diffs);
+    diffs.forEach(function(d, i){ d.id = i; });
+    currentDiffs = diffs;
+
+    var diffMap = new Map();
+    diffs.forEach(function(d){ diffMap.set(encodePath(d.path), d); });
+
+    var leftLines = [], rightLines = [];
+    buildLines(sortedLeft, '', [], '', 0, diffMap, null, leftLines);
+    buildLines(sortedRight, '', [], '', 0, diffMap, null, rightLines);
+
+    renderPanel(bodyLeftEl, leftLines);
+    renderPanel(bodyRightEl, rightLines);
+    renderSummary(diffs);
+
+    resultSection.hidden = false;
+    currentIndex = -1;
+    if (diffs.length) selectDiff(0);
+    else { refreshHighlight(inputLeft, highlightLeft); refreshHighlight(inputRight, highlightRight); }
+  }
+
+  // ---------- wiring ----------
+  function debounce(fn, ms){
+    var t;
+    return function(){
+      var args = arguments;
+      clearTimeout(t);
+      t = setTimeout(function(){ fn.apply(null, args); }, ms);
+    };
+  }
+
+  function wireFileInput(input, textarea, pre, nameEl){
+    input.addEventListener('change', function(){
+      var f = input.files[0];
+      if (!f) return;
+      var reader = new FileReader();
+      reader.onload = function(){ setEditorValue(textarea, pre, reader.result); if (nameEl) nameEl.textContent = '· ' + f.name; runCompare(); };
+      reader.readAsText(f);
+      input.value = '';
+    });
+  }
+  wireFileInput(fileLeft, inputLeft, highlightLeft, filenameLeft);
+  wireFileInput(fileRight, inputRight, highlightRight, filenameRight);
+
+  wireEditorHighlight(inputLeft, highlightLeft);
+  wireEditorHighlight(inputRight, highlightRight);
+
+  var debouncedCompare = debounce(runCompare, 500);
+  inputLeft.addEventListener('input', debouncedCompare);
+  inputRight.addEventListener('input', debouncedCompare);
+  inputLeft.addEventListener('keydown', function(e){ if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') runCompare(); });
+  inputRight.addEventListener('keydown', function(e){ if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') runCompare(); });
+
+  btnCompare.addEventListener('click', runCompare);
+  btnSwap.addEventListener('click', function(){
+    var tmp = inputLeft.value;
+    setEditorValue(inputLeft, highlightLeft, inputRight.value);
+    setEditorValue(inputRight, highlightRight, tmp);
+    var tmpName = filenameLeft.textContent;
+    filenameLeft.textContent = filenameRight.textContent;
+    filenameRight.textContent = tmpName;
+    runCompare();
+  });
+  btnClearAll.addEventListener('click', function(){
+    setEditorValue(inputLeft, highlightLeft, ''); setEditorValue(inputRight, highlightRight, '');
+    filenameLeft.textContent = ''; filenameRight.textContent = '';
+    hideError(); resultSection.hidden = true;
+  });
+  clearLeftBtn.addEventListener('click', function(){ setEditorValue(inputLeft, highlightLeft, ''); filenameLeft.textContent = ''; runCompare(); });
+  clearRightBtn.addEventListener('click', function(){ setEditorValue(inputRight, highlightRight, ''); filenameRight.textContent = ''; runCompare(); });
+
+  btnPrev.addEventListener('click', function(){ selectDiff(currentIndex - 1); });
+  btnNext.addEventListener('click', function(){ selectDiff(currentIndex + 1); });
+
+  [bodyLeftEl, bodyRightEl].forEach(function(body){
+    body.addEventListener('click', function(e){
+      var line = e.target.closest('.line[data-diffid]');
+      if (!line) return;
+      selectDiff(Number(line.dataset.diffid));
+    });
+  });
+
+  document.addEventListener('keydown', function(e){
+    if (resultSection.hidden || !currentDiffs.length) return;
+    var tag = document.activeElement.tagName;
+    if (tag === 'TEXTAREA' || tag === 'INPUT') return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight'){ selectDiff(currentIndex + 1); e.preventDefault(); }
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft'){ selectDiff(currentIndex - 1); e.preventDefault(); }
+  });
+
+  // 双向同步滚动（按比例），便于左右对照
+  var syncing = false;
+  function linkScroll(a, b){
+    a.addEventListener('scroll', function(){
+      if (syncing) return;
+      syncing = true;
+      var ratio = a.scrollTop / ((a.scrollHeight - a.clientHeight) || 1);
+      b.scrollTop = ratio * ((b.scrollHeight - b.clientHeight) || 1);
+      syncing = false;
+    });
+  }
+  linkScroll(bodyLeftEl, bodyRightEl);
+  linkScroll(bodyRightEl, bodyLeftEl);
+})();
+</script>
+</body>
+</html>
