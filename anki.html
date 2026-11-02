@@ -219,6 +219,14 @@ textarea.field{resize:vertical;line-height:1.7;font-family:ui-monospace,SFMono-R
   -webkit-box-orient:vertical;overflow:hidden;
 }
 .tile-foot{display:flex;align-items:center;gap:6px;margin-top:auto;padding-top:4px;flex-wrap:wrap}
+.tile-tag{
+  -webkit-appearance:none;appearance:none;flex:0 0 auto;max-width:124px;
+  border:1px dashed var(--line-strong);background:var(--panel);color:var(--muted);
+  font-size:11.5px;padding:3px 20px 3px 9px;border-radius:999px;cursor:pointer;transition:.15s;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%238b929c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 7px center;background-size:9px 6px;
+}
+.tile-tag:hover,.tile-tag:focus{border-style:solid;border-color:var(--accent);color:var(--accent);outline:none}
 .tile-check{
   position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:6px;
   border:1.5px solid var(--line-strong);background:var(--panel);display:grid;place-items:center;
@@ -249,6 +257,17 @@ textarea.field{resize:vertical;line-height:1.7;font-family:ui-monospace,SFMono-R
 }
 .preview-table th{color:var(--muted);font-weight:600;font-size:11px;letter-spacing:.4px}
 .preview-table td{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pick-wrap{max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:11px;margin-top:10px}
+.pick-wrap .preview-table{margin-top:0}
+.pick-wrap .preview-table thead th{position:sticky;top:0;background:var(--panel);z-index:1}
+.preview-table td.pick{width:34px}
+.preview-table tr.dup td{color:var(--muted)}
+.preview-table tr.dup td.pick{color:inherit}
+.preview-table input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;cursor:pointer;margin:1px 0 0}
+.dup-list{margin-top:12px;border:1px solid var(--line);border-radius:11px;background:var(--sidebar);max-height:220px;overflow:auto}
+.dup-list div{display:flex;gap:8px;align-items:center;padding:7px 11px;border-bottom:1px solid var(--line);font-size:12.5px}
+.dup-list div:last-child{border-bottom:0}
+.dup-list .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .scope-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;max-height:180px;overflow:auto}
 .scope-tag{
   border:1px solid var(--line-strong);background:var(--panel);border-radius:999px;
@@ -740,9 +759,10 @@ function plain(src, max){
 }
 
 /* ================= UI 状态 ================= */
+var DEFAULT_TAG = 'work';
 var ui = {
-  view: 'review',
-  tags: [],
+  view: 'library',
+  tags: [DEFAULT_TAG],
   group: 'all',
   q: '',
   sort: 'created-desc',
@@ -756,6 +776,9 @@ var ui = {
   session: {done:0, again:0, start:0},
   importText: '',
   importPreview: null,
+  importPending: null,
+  importDedupe: true,
+  importReplace: false,
   importFileName: '',
   exportScope: 'all',
   exportTags: {},
@@ -783,16 +806,14 @@ function renderSidebar(){
 
   var map = tagCounts();
   var tags = Object.keys(map).sort(function(a,b){ return map[b]-map[a] || a.localeCompare(b); });
+  // 默认分组即使在库里还没有卡片也要露出来，方便直接往里加卡片
+  if(tags.indexOf(DEFAULT_TAG) < 0) tags.push(DEFAULT_TAG);
   var host = $('#tagList');
-  if(!tags.length){
-    host.innerHTML = '<div class="tag-empty">还没有标签。<br>在卡片内容里写 <b>#标签</b> 就会自动归类。</div>';
-    return;
-  }
   host.innerHTML = '<button class="tag-item' + (ui.tags.length ? '' : ' on') + '" data-act="tag" data-tag="">' +
     '<span class="tag-name">全部标签</span><span class="count">' + state.cards.length + '</span></button>' +
     tags.map(function(t){
       return '<button class="tag-item' + (ui.tags.indexOf(t) >= 0 ? ' on' : '') + '" data-act="tag" data-tag="' + esc(t) + '">' +
-        '<span class="tag-name">#' + esc(t) + '</span><span class="count">' + map[t] + '</span></button>';
+        '<span class="tag-name">#' + esc(t) + '</span><span class="count">' + (map[t] || 0) + '</span></button>';
     }).join('');
 }
 function renderTop(){
@@ -961,6 +982,30 @@ function renderTagBar(){
     }).join('') +
     (ui.tags.length ? '<button class="btn ghost" data-act="clear-tag">清除筛选</button>' : '');
 }
+/* 「加标签」下拉：候选 = 库里已有标签中这张卡还没有的，另加「新建标签」 */
+var tagNames = [];
+function tagPickerHtml(c){
+  var own = c.tags || [];
+  var opts = tagNames.filter(function(t){ return own.indexOf(t) < 0; });
+  return '<select class="tile-tag" data-act="tile-tag" data-tag-pick data-id="' + c.id + '" title="给这张卡片加个标签">' +
+    '<option value="">＋ 标签</option>' +
+    opts.map(function(t){ return '<option value="' + esc(t) + '">#' + esc(t) + '</option>'; }).join('') +
+    '<option value="__new">＋ 新建标签…</option>' +
+  '</select>';
+}
+function addTagToCard(id, raw){
+  var c = findCard(id);
+  if(!c) return;
+  var tag = String(raw == null ? '' : raw).replace(/^#+/, '').trim();
+  if(!tag) return;
+  if((c.tags || []).indexOf(tag) >= 0){ toast('已经有 #' + tag + ' 了'); return; }
+  c.manualTags = uniq((c.manualTags || []).concat([tag]));
+  c.tags = computeTags(c);
+  c.updated = Date.now();
+  save();
+  render();
+  toast('已加上 #' + tag);
+}
 function tileHtml(c){
   var tagHtml = (c.tags||[]).slice(0,3).map(function(t){ return '<span class="chip">#' + esc(t) + '</span>'; }).join('');
   if((c.tags||[]).length > 3) tagHtml += '<span class="chip gray">+' + (c.tags.length-3) + '</span>';
@@ -969,7 +1014,7 @@ function tileHtml(c){
     '<div class="tile-check" data-act="toggle-select" data-id="' + c.id + '">✓</div>' +
     '<div class="tile-front">' + esc(plain(c.front, 90)) + '</div>' +
     '<div class="tile-back">' + esc(plain(c.back, 80)) + '</div>' +
-    '<div class="tile-foot">' + tagHtml +
+    '<div class="tile-foot">' + tagPickerHtml(c) + tagHtml +
       '<div style="flex:1"></div>' +
       '<span class="chip ' + (dl.cls||'gray') + '">' + dl.text + '</span>' +
     '</div>' +
@@ -980,6 +1025,8 @@ function fillGrid(){
   ui.order = arr.map(function(c){ return c.id; });
   var host = $('#cardGrid');
   if(!host) return;
+  var tagMap = tagCounts();
+  tagNames = Object.keys(tagMap).sort(function(a,b){ return tagMap[b]-tagMap[a] || a.localeCompare(b); });
   renderTagBar();
 
   var selCount = Object.keys(ui.selected).length;
@@ -1036,7 +1083,7 @@ function renderImport(){
   '<div class="pane">' +
     '<div class="block">' +
       '<h2>批量导入</h2>' +
-      '<p class="lead">一行一张卡片：<b>正面 → 背面 → 标签</b>。支持 Tab、竖线 |、逗号分隔；内容里写 <b>#标签</b> 会自动归类。也可以直接拖入 .csv / .tsv / .txt / .md / .json 文件，或者 Anki 导出的 <b>.apkg / .colpkg</b>。</p>' +
+      '<p class="lead">一行一张卡片：<b>正面 → 背面 → 标签</b>。支持 Tab、竖线 |、逗号分隔；内容里写 <b>#标签</b> 会自动归类。也可以直接拖入 .csv / .tsv / .txt / .md / .json 文件，或者 Anki 导出的 <b>.apkg / .colpkg</b>。解析后会列出全部卡片供你勾选，标题与已有卡片重复的默认不勾。</p>' +
       '<div class="drop" id="drop">' +
         '把文件拖到这里，或 <b>点击选择文件</b><br>' +
         '<span style="font-size:11.5px">.csv · .tsv · .txt · .md · .json（本应用导出的备份）· .apkg / .colpkg（Anki 包）</span>' +
@@ -1047,8 +1094,8 @@ function renderImport(){
       '</div>' +
       '<div class="row" style="margin-top:12px">' +
         '<button class="btn primary" data-act="parse-import">解析预览</button>' +
-        '<label class="switch"><input type="checkbox" id="dedupe" checked>跳过重复卡片</label>' +
-        '<label class="switch"><input type="checkbox" id="replaceAll">清空现有卡片后再导入</label>' +
+        '<label class="switch"><input type="checkbox" id="dedupe"' + (ui.importDedupe ? ' checked' : '') + '>检测重复标题</label>' +
+        '<label class="switch"><input type="checkbox" id="replaceAll"' + (ui.importReplace ? ' checked' : '') + '>清空现有卡片后再导入</label>' +
         '<div style="flex:1"></div>' +
         '<button class="btn ghost" id="fillSample">填入示例</button>' +
       '</div>' +
@@ -1066,6 +1113,7 @@ function renderImport(){
         '<p><b>4. JSON 备份</b>：本应用「导出 → JSON」的文件，会原样恢复卡片与复习进度。</p>' +
         '<p><b>5. Anki 包（.apkg / .colpkg）</b>：拖进来即可，浏览器本地解包并直读 SQLite，不经过任何服务器。导入规则：字段 1 → 正面，字段 2 → 背面，其余字段 → 笔记；Anki 标签和所属牌组都变成标签；Cloze 卡片把 <code>{{c1::…}}</code> 展开成带空白的问句与加粗答案；HTML 会转成 Markdown；新版 Anki 的 zstd 压缩包（collection.anki21b）也能直接读。目前只导入文字：图片、音频等媒体会被略过，整张只有图片的卡片会标注「原卡片是图片，文字已空」。复习进度不迁移，统一按新卡处理。</p>' +
         '<p><b>标签规则</b>：正文里任何 <code>#标签</code> 都会被识别成标签；标签列可以写 <code>#记忆 学习</code>，带不带 # 都行。</p>' +
+        '<p><b>重复标题</b>：解析后会按「正面」文本比对已有卡片（以及本批内是否重复），重复项标注出来并默认不勾选；你可以手动勾上，导入时会再确认一次，选「仍然导入」就给标题加 <code>(2)</code>、<code>(3)</code> 这样的序号后缀。</p>' +
       '</div>' +
     '</div>' +
   '</div>';
@@ -1093,6 +1141,18 @@ function renderImport(){
       'HTTP 与 HTTPS 的区别 | HTTPS 在 HTTP 之下加了 TLS，提供加密、完整性校验与身份认证 | #网络';
     ui.importText = ta.value;
   });
+  var dedupeBox = $('#dedupe'), replaceBox = $('#replaceAll');
+  if(dedupeBox) dedupeBox.addEventListener('change', function(){
+    ui.importDedupe = this.checked;
+    if(ui.importPreview){
+      renderImportPreview(true);
+      toast(this.checked ? '已重新标记重复标题' : '已关闭重复检测，默认全部勾选');
+    }
+  });
+  if(replaceBox) replaceBox.addEventListener('change', function(){
+    ui.importReplace = this.checked;
+    if(ui.importPreview) renderImportPreview(true);
+  });
   if(ui.importPreview) renderImportPreview();
 }
 function readFile(file){
@@ -1104,7 +1164,7 @@ function readFile(file){
     var ta = $('#importText');
     if(ta) ta.value = ui.importText;
     ui.importPreview = parseImport(ui.importText);
-    renderImportPreview();
+    renderImportPreview(true);
     toast('已读取 ' + file.name);
   };
   reader.readAsText(file, 'utf-8');
@@ -1190,27 +1250,107 @@ function parseCSV(text){
   if(cell !== '' || row.length){ row.push(cell); rows.push(row); }
   return rows.filter(function(r){ return r.some(function(c){ return c.trim(); }); });
 }
-function renderImportPreview(){
+function renderImportPreview(resetPick){
   var host = $('#importResult');
   if(!host) return;
   var p = ui.importPreview;
   if(!p){ host.innerHTML = ''; return; }
-  var sample = p.cards.slice(0, 5);
+  markImportDupes(resetPick);
+  var picked = importPicked().length;
+  var dups = p.cards.filter(function(c){ return c.dup; }).length;
   host.innerHTML = '<div class="block">' +
     '<h2>解析结果</h2>' +
-    '<p class="lead">识别格式：<b>' + p.format + '</b> · 可导入 <b>' + p.cards.length + '</b> 张' +
+    '<p class="lead">识别格式：<b>' + p.format + '</b> · 共 <b>' + p.cards.length + '</b> 张' +
+      (dups ? ' · <b style="color:var(--again)">' + dups + ' 张标题重复，已自动取消勾选</b>' : '') +
       (p.errors.length ? ' · 跳过 ' + p.errors.length + ' 条' : '') + '</p>' +
-    (sample.length ? '<table class="preview-table"><thead><tr><th>正面</th><th>背面</th><th>标签</th></tr></thead><tbody>' +
-      sample.map(function(c){
-        var tags = extractTags([c.front, c.back].join('\n')).concat(c.tags || []);
-        return '<tr><td>' + esc(plain(c.front, 60)) + '</td><td>' + esc(plain(c.back, 60)) + '</td><td>' + esc(uniq(tags).map(function(t){return '#'+t;}).join(' ')) + '</td></tr>';
-      }).join('') + '</tbody></table>' : '') +
+    (p.cards.length
+      ? '<div class="row" style="margin-bottom:2px">' +
+          '<button class="btn" data-act="pick-all">全选</button>' +
+          '<button class="btn" data-act="pick-none">全不选</button>' +
+          (dups ? '<button class="btn" data-act="pick-fresh">只选不重复的 ' + (p.cards.length - dups) + ' 张</button>' : '') +
+          '<div style="flex:1"></div>' +
+          '<span class="hint" id="pickCount">已勾选 ' + picked + ' / ' + p.cards.length + ' 张</span>' +
+        '</div>' +
+        '<div class="pick-wrap"><table class="preview-table">' +
+          '<thead><tr><th class="pick">导入</th><th>正面（标题）</th><th>背面</th><th>标签</th><th>状态</th></tr></thead><tbody>' +
+          p.cards.map(function(c, i){
+            var tags = uniq(extractTags([c.front, c.back, c.note || ''].join('\n')).concat(c.tags || []));
+            return '<tr' + (c.dup ? ' class="dup"' : '') + '>' +
+              '<td class="pick"><input type="checkbox" data-pick="' + i + '"' + (c._checked ? ' checked' : '') + '></td>' +
+              '<td title="' + esc(c.front) + '">' + esc(plain(c.front, 70)) + '</td>' +
+              '<td title="' + esc(c.back) + '">' + esc(plain(c.back, 50)) + '</td>' +
+              '<td title="' + esc(tags.map(function(t){ return '#' + t; }).join(' ')) + '">' + esc(tags.slice(0,3).map(function(t){ return '#' + t; }).join(' ')) + '</td>' +
+              '<td>' + (c.dup ? '<span class="chip red">' + esc(c.dupFrom) + '</span>' : '<span class="chip green">新卡片</span>') + '</td>' +
+            '</tr>';
+          }).join('') + '</tbody></table></div>'
+      : '') +
+    (dups ? '<p class="hint" style="margin-top:10px">勾选重复项再导入时会再确认一次：可以跳过，也可以给标题加序号后缀（如「标题 (2)」）后导入。</p>' : '') +
     (p.errors.length ? '<p class="hint" style="margin-top:10px">' + p.errors.slice(0,5).map(esc).join('；') + '</p>' : '') +
     '<div class="row end" style="margin-top:14px">' +
       '<button class="btn" data-act="clear-import">清空</button>' +
-      '<button class="btn primary" data-act="do-import"' + (p.cards.length ? '' : ' disabled') + '>导入 ' + p.cards.length + ' 张卡片</button>' +
+      '<button class="btn primary" id="importBtn" data-act="do-import"' + (picked ? '' : ' disabled') + '>导入 ' + picked + ' 张卡片</button>' +
     '</div>' +
   '</div>';
+}
+
+/* ---- 导入时的重复标题判定：标题 = 正面文本，忽略多余空白 ---- */
+function normTitle(s){
+  return String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
+}
+function markImportDupes(resetPick){
+  var p = ui.importPreview;
+  if(!p) return;
+  var live = {}, seen = {}, dups = 0;
+  if(ui.importDedupe && !ui.importReplace){
+    state.cards.forEach(function(c){ var k = normTitle(c.front); if(k) live[k] = 1; });
+  }
+  p.cards.forEach(function(c){
+    var k = normTitle(c.front);
+    var fromLib = !!(ui.importDedupe && k && live[k]);
+    var inBatch = !!(ui.importDedupe && k && seen[k]);
+    c.dup = !!(fromLib || inBatch);
+    c.dupFrom = fromLib ? '库里已有' : (inBatch ? '本批重复' : '');
+    if(k) seen[k] = 1;
+    if(resetPick || typeof c._checked !== 'boolean') c._checked = !c.dup;
+    if(c.dup) dups++;
+  });
+  p.dups = dups;
+}
+function importPicked(){
+  var p = ui.importPreview;
+  if(!p) return [];
+  return p.cards.filter(function(c){ return c._checked; });
+}
+function setImportPick(fn){
+  var p = ui.importPreview;
+  if(!p) return;
+  p.cards.forEach(function(c){ c._checked = !!fn(c); });
+  $$('#importResult input[data-pick]').forEach(function(box){
+    var c = p.cards[+box.getAttribute('data-pick')];
+    box.checked = !!(c && c._checked);
+  });
+  syncImportFooter();
+}
+function syncImportFooter(){
+  var p = ui.importPreview;
+  var total = p ? p.cards.length : 0;
+  var n = importPicked().length;
+  var cnt = $('#pickCount');
+  if(cnt) cnt.textContent = '已勾选 ' + n + ' / ' + total + ' 张';
+  var btn = $('#importBtn');
+  if(btn){
+    btn.textContent = '导入 ' + n + ' 张卡片';
+    btn.disabled = !n;
+  }
+}
+function uniqueImportTitle(base, used){
+  var title = String(base).trim() || '未命名卡片';
+  if(!used[normTitle(title)]) return title;
+  for(var n = 2; n < 1000; n++){
+    var cand = title + ' (' + n + ')';
+    if(!used[normTitle(cand)]) return cand;
+  }
+  return title + ' (' + Date.now() + ')';
 }
 
 /* ================= Anki 包解析（.apkg / .colpkg） ================= */
@@ -1524,8 +1664,8 @@ async function readAnkiPackage(file){
     var p = await parseAnkiPackage(file);
     ui.importPreview = p;
     ui.importFileName = file.name;
-    renderImportPreview();
-    toast('从 ' + file.name + ' 读到 ' + p.cards.length + ' 张卡片');
+    renderImportPreview(true);
+    toast('从 ' + file.name + ' 读到 ' + p.cards.length + ' 张卡片' + (p.dups ? '，' + p.dups + ' 张标题重复已自动过滤' : ''));
   }catch(e){
     ui.importPreview = null;
     if(host) host.innerHTML = '<div class="block">' +
@@ -1905,7 +2045,7 @@ function openEditor(id){
   $('#modal').hidden = false;
   setTimeout(function(){ var f = $('#edFront'); if(f) f.focus(); }, 30);
 }
-function closeModal(){ $('#modal').hidden = true; $('#modalPanel').innerHTML = ''; }
+function closeModal(){ ui.importPending = null; $('#modal').hidden = true; $('#modalPanel').innerHTML = ''; }
 function saveCardFromModal(id){
   var front = $('#edFront').value.trim();
   var back = $('#edBack').value.trim();
@@ -1937,27 +2077,66 @@ function saveCardFromModal(id){
 function doImport(){
   var p = ui.importPreview;
   if(!p || !p.cards.length){ toast('没有可导入的卡片'); return; }
-  var dedupe = $('#dedupe') ? $('#dedupe').checked : true;
-  var replaceAll = $('#replaceAll') ? $('#replaceAll').checked : false;
+  var picked = importPicked();
+  if(!picked.length){ toast('还没有勾选卡片，先在解析结果里选一下'); return; }
+  var dups = picked.filter(function(c){ return c.dup; });
+  if(dups.length){ openImportDupModal(picked, dups); return; }
+  commitImport(picked, false);
+}
+function openImportDupModal(picked, dups){
+  ui.importPending = picked;
+  var fresh = picked.length - dups.length;
+  var sample = dups[0] ? plain(dups[0].front, 24) : '标题';
+  $('#modalPanel').innerHTML =
+    '<h3>有 ' + dups.length + ' 张卡片的标题重复</h3>' +
+    '<p class="hint">这些标题在卡片库里已经存在，或者在本批里出现了多次，常规导入会跳过它们。' +
+      '如果仍然要导入，标题会自动加上序号后缀（如「' + esc(sample) + ' (2)」），不会覆盖已有卡片。</p>' +
+    '<div class="dup-list">' +
+      dups.slice(0, 50).map(function(c){
+        return '<div><span class="t" title="' + esc(c.front) + '">' + esc(plain(c.front, 60)) + '</span>' +
+          '<span class="chip red">' + esc(c.dupFrom) + '</span></div>';
+      }).join('') +
+      (dups.length > 50 ? '<div><span class="t hint">…… 还有 ' + (dups.length - 50) + ' 张</span></div>' : '') +
+    '</div>' +
+    '<div class="row end" style="margin-top:16px">' +
+      '<button class="btn" data-act="modal-close">取消</button>' +
+      '<button class="btn" data-act="import-skip-dups"' + (fresh ? '' : ' disabled') + '>跳过重复，只导入 ' + fresh + ' 张</button>' +
+      '<button class="btn primary" data-act="import-keep-dups">仍然导入，标题加后缀（共 ' + picked.length + ' 张）</button>' +
+    '</div>';
+  $('#modal').hidden = false;
+}
+function commitImport(cards, renameDup){
+  if(!cards.length){ toast('没有可导入的卡片'); return; }
+  if(ui.importReplace) state.cards = [];
+  var used = {};
+  if(!ui.importReplace) state.cards.forEach(function(c){ var k = normTitle(c.front); if(k) used[k] = 1; });
 
-  var existing = {};
-  if(dedupe){
-    state.cards.forEach(function(c){ existing[(c.front + '\u0001' + c.back).trim()] = 1; });
-  }
-  if(replaceAll) state.cards = [];
-
-  var added = 0, skipped = 0;
-  p.cards.forEach(function(raw){
-    var key = (String(raw.front) + '\u0001' + String(raw.back)).trim();
-    if(dedupe && existing[key]){ skipped++; return; }
-    existing[key] = 1;
-    state.cards.unshift(makeCard(raw));
+  var added = 0, renamed = 0, addedCards = [];
+  cards.forEach(function(raw){
+    var front = String(raw.front);
+    if(renameDup && raw.dup){
+      var t = uniqueImportTitle(front, used);
+      if(t !== front) renamed++;
+      front = t;
+    }
+    var key = normTitle(front);
+    if(key) used[key] = 1;
+    var card = makeCard({
+      front: front, back: raw.back, note: raw.note, noteUrl: raw.noteUrl,
+      manualTags: raw.tags, created: raw.created, sched: raw.sched
+    });
+    state.cards.unshift(card);
+    addedCards.push(card);
     added++;
   });
   save();
   ui.importPreview = null;
+  ui.importPending = null;
   ui.importText = '';
-  toast('导入完成：新增 ' + added + ' 张' + (skipped ? '，跳过重复 ' + skipped + ' 张' : ''));
+  closeModal();
+  // 默认分组是 #work，新卡片若都不在筛选范围内会看到空列表，先切回「全部标签」
+  if(ui.tags.length && !addedCards.some(matchTags)) ui.tags = [];
+  toast('导入完成：新增 ' + added + ' 张' + (renamed ? '，' + renamed + ' 张重复标题已加序号后缀' : ''));
   ui.view = 'library';
   render();
 }
@@ -2037,6 +2216,7 @@ document.addEventListener('click', function(e){
       rebuildQueue(); render();
       break;
     case 'open': openDrawer(id); break;
+    case 'tile-tag': break;   // 下拉自己处理 change，别顺手把抽屉打开
     case 'close-drawer': closeDrawer(); break;
     case 'drawer-prev': drawerStep(-1); break;
     case 'drawer-next': drawerStep(1); break;
@@ -2083,9 +2263,23 @@ document.addEventListener('click', function(e){
       var ta = $('#importText');
       ui.importText = ta ? ta.value : ui.importText;
       ui.importPreview = parseImport(ui.importText);
-      renderImportPreview();
-      if(ui.importPreview.cards.length) toast('解析到 ' + ui.importPreview.cards.length + ' 张卡片');
+      renderImportPreview(true);
+      var parsedN = ui.importPreview.cards.length;
+      if(parsedN) toast('解析到 ' + parsedN + ' 张卡片' + (ui.importPreview.dups ? '，' + ui.importPreview.dups + ' 张标题重复已自动过滤' : ''));
       else toast('没有解析到卡片，检查一下格式');
+      break;
+    }
+    case 'pick-all': setImportPick(function(){ return true; }); break;
+    case 'pick-none': setImportPick(function(){ return false; }); break;
+    case 'pick-fresh': setImportPick(function(c){ return !c.dup; }); break;
+    case 'import-skip-dups': {
+      var pendingSkip = ui.importPending || importPicked();
+      commitImport(pendingSkip.filter(function(c){ return !c.dup; }), false);
+      break;
+    }
+    case 'import-keep-dups': {
+      var pendingKeep = ui.importPending || importPicked();
+      commitImport(pendingKeep, true);
       break;
     }
     case 'clear-import':
@@ -2121,6 +2315,28 @@ document.addEventListener('click', function(e){
       break;
     }
   }
+});
+
+document.addEventListener('change', function(e){
+  var picker = e.target && e.target.closest ? e.target.closest('select[data-tag-pick]') : null;
+  if(picker){
+    var cardId = picker.getAttribute('data-id');
+    var val = picker.value;
+    picker.value = '';
+    if(val === '__new'){
+      var name = prompt('新建标签名（不用打 #）');
+      if(name) addTagToCard(cardId, name);
+    }else if(val){
+      addTagToCard(cardId, val);
+    }
+    return;
+  }
+  var box = e.target && e.target.closest ? e.target.closest('input[data-pick]') : null;
+  if(!box || !ui.importPreview) return;
+  var c = ui.importPreview.cards[+box.getAttribute('data-pick')];
+  if(!c) return;
+  c._checked = box.checked;
+  syncImportFooter();
 });
 
 document.addEventListener('keydown', function(e){
