@@ -229,6 +229,23 @@ body {
   margin-bottom: -1px;
 }
 
+.view-toggle {
+  margin-left: auto;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text2);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  padding-bottom: 6px;
+}
+.view-toggle:hover { color: var(--text); }
+.view-toggle input[type=checkbox] { cursor: pointer; margin: 0; }
+.view-toggle .toggle-cnt { color: var(--text3); font-size: 11px; }
+
 /* ── 看板视图 ── */
 .kanban-wrap {
   padding: 20px 28px;
@@ -861,8 +878,102 @@ td {
 .modal-footer {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 8px;
 }
+
+/* ── 导入预览弹窗 ── */
+.import-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.imp-chip {
+  font-size: 11px;
+  color: var(--text2);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+.imp-chip b { color: #3a3a3a; font-size: 12px; }
+.import-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text2);
+  margin-bottom: 8px;
+}
+.import-toolbar label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.import-toolbar .imp-mini {
+  font-size: 11px;
+  padding: 2px 8px;
+  background: var(--surface2);
+  color: var(--text2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.import-toolbar .imp-mini:hover { border-color: var(--border2); color: var(--text); }
+.import-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+.import-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text3);
+  font-size: 12px;
+}
+.import-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 8px 10px;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+}
+.import-row.is-new    { border-left-color: var(--green); }
+.import-row.is-update { border-left-color: var(--blue); }
+.import-row.is-same,
+.import-row.is-skip   { opacity: .5; cursor: default; }
+.import-row input[type=checkbox] { margin-top: 3px; cursor: pointer; flex-shrink: 0; }
+.imp-main { flex: 1; min-width: 0; }
+.imp-name { font-size: 13px; color: var(--text); word-break: break-all; }
+.imp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--text3);
+}
+.imp-diff { color: var(--yellow); }
+.imp-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  border-radius: 20px;
+  padding: 1px 8px;
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  margin-top: 1px;
+  white-space: nowrap;
+}
+.imp-badge.new    { color: #5a8a6a; border-color: #cfe0d6; background: #eef4f0; }
+.imp-badge.update { color: #5c7d96; border-color: #d3e0e8; background: #eef3f6; }
+.imp-badge.same   { color: var(--text3); }
+.imp-badge.skip   { color: var(--red); border-color: #ecd9d2; background: #f7efeb; }
+#import-selected { margin-left: auto; white-space: nowrap; }
 
 /* ── 子任务 ── */
 .subtask-progress {
@@ -1059,7 +1170,7 @@ td {
   <button class="btn btn-done" onclick="clearDone()">清除已完成</button>
   <button class="btn btn-cat"  onclick="openCatModal()">⊞ 管理分类</button>
   <button class="btn btn-cat"  onclick="exportData()">⬇ 导出</button>
-  <button class="btn btn-cat"  onclick="document.getElementById('import-file').click()">⬆ 导入</button>
+  <button class="btn btn-cat"  onclick="document.getElementById('import-file').click()" title="导入前先预览，可逐条选择要哪个；不会覆盖现有数据">⬆ 导入</button>
   <input type="file" id="import-file" accept="application/json,.json" style="display:none" onchange="importData(this)">
   <div class="hint">
     <span class="kbd">⌘V</span>粘贴
@@ -1074,6 +1185,10 @@ td {
   <button class="view-tab" id="tab-list"   onclick="switchView('list')">列表</button>
   <button class="view-tab" id="tab-timeline" onclick="switchView('timeline')">日程</button>
   <button class="view-tab" id="tab-initiator" onclick="switchView('initiator')">发起人</button>
+  <label class="view-toggle" title="勾选后把已完成的任务也列出来（未完成的排在前面）">
+    <input type="checkbox" id="show-done-toggle" onchange="toggleShowDone(this.checked)">
+    显示已完成 <span class="toggle-cnt" id="show-done-count"></span>
+  </label>
 </div>
 
 <!-- 看板视图 -->
@@ -1153,6 +1268,26 @@ td {
   </div>
 </div>
 
+<!-- 导入预览弹窗 -->
+<div class="modal-bg" id="import-modal" onclick="if(event.target===this)closeImportModal()">
+  <div class="modal" style="width:600px;max-width:94vw">
+    <h3 style="cursor:default;overflow:hidden">⬆ 导入预览<span id="import-file-name"
+      style="font-weight:400;color:var(--text3);font-size:11px;margin-left:6px;display:inline-block;max-width:330px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span></h3>
+    <div class="import-summary" id="import-summary"></div>
+    <div class="import-toolbar">
+      <label><input type="checkbox" id="import-all" onchange="toggleImportAll(this.checked)"> 全选</label>
+      <button class="imp-mini" onclick="selectImportOnly('new')">仅选新增</button>
+      <button class="imp-mini" onclick="selectImportOnly('update')">仅选更新</button>
+      <span id="import-selected"></span>
+    </div>
+    <div class="import-list" id="import-list"></div>
+    <div class="modal-footer">
+      <button class="btn btn-cat" onclick="closeImportModal()">取消</button>
+      <button class="btn btn-add" id="import-confirm" onclick="confirmImport()">导入选中项</button>
+    </div>
+  </div>
+</div>
+
 <!-- 拖拽遮罩 -->
 <div id="drop-overlay">
   <div class="di">🔗</div>
@@ -1168,6 +1303,10 @@ td {
 // ═══════════════════════════════════════════════
 const STORE_ITEMS = 'todo_items_v3';
 const STORE_CATS  = 'todo_cats_v3';
+const STORE_SHOW_DONE = 'todo_show_done_v1'; // 「显示已完成」开关的记忆
+// 已删除条目的 id → 删除时间。合并时靠它判断「这条在别的页面已经删掉了」，避免旧数据把它复活
+const STORE_DELETED = 'todo_deleted_v3';
+const TOMB_TTL = 180 * 86400000; // 删除记录保留半年
 
 const DEFAULT_CATS = [
   { id: 'cat-1', name: '工作',   color: '#8ab09a' },
@@ -1179,23 +1318,35 @@ const DEFAULT_CATS = [
 //  数据
 // ═══════════════════════════════════════════════
 // 归一化单条数据：兼容旧格式（无 subtasks / subtasks 为字符串数组等）
+// updatedAt 是合并时判断「谁更新」的唯一依据，老数据没有就记 0
 function normalizeItem(i) {
   i = i || {};
   const subtasks = Array.isArray(i.subtasks)
     ? i.subtasks.map(s =>
         typeof s === 'string'
-          ? { id: uid(), text: s.trim(), done: false }
-          : { id: s.id || uid(), text: String(s.text ?? s.name ?? '').trim(), done: !!s.done }
+          ? { id: uid(), text: s.trim(), done: false, updatedAt: 0 }
+          : { id: s.id || uid(), text: String(s.text ?? s.name ?? '').trim(), done: !!s.done, updatedAt: +s.updatedAt || 0 }
       ).filter(s => s.text)
     : [];
   return {
-    id:      i.id || uid(),
-    name:    String(i.name ?? ''),
-    url:     i.url || '',
-    ddl:     i.ddl || '',
-    catId:   i.catId || '',
-    done:    !!i.done,
+    id:        i.id || uid(),
+    name:      String(i.name ?? ''),
+    url:       i.url || '',
+    ddl:       i.ddl || '',
+    catId:     i.catId || '',
+    done:      !!i.done,
     subtasks,
+    updatedAt: +i.updatedAt || 0,
+  };
+}
+
+function normalizeCat(c) {
+  c = c || {};
+  return {
+    id:        c.id || uid(),
+    name:      String(c.name ?? ''),
+    color:     c.color || randomColor(),
+    updatedAt: +c.updatedAt || 0,
   };
 }
 
@@ -1208,14 +1359,63 @@ function loadItems() {
 function loadCats() {
   try {
     const c = JSON.parse(localStorage.getItem(STORE_CATS));
-    return c && c.length ? c : DEFAULT_CATS;
-  } catch { return DEFAULT_CATS; }
+    return (Array.isArray(c) && c.length ? c : DEFAULT_CATS).map(normalizeCat);
+  } catch { return DEFAULT_CATS.map(normalizeCat); }
 }
-function saveItems() { localStorage.setItem(STORE_ITEMS, JSON.stringify(items)); }
-function saveCats()  { localStorage.setItem(STORE_CATS,  JSON.stringify(cats)); }
+function loadDeleted() {
+  try {
+    const d = JSON.parse(localStorage.getItem(STORE_DELETED)) || {};
+    const now = Date.now(), keep = {};
+    Object.keys(d).forEach(id => { if (now - d[id] < TOMB_TTL) keep[id] = d[id]; });
+    return keep;
+  } catch { return {}; }
+}
+
+// 写入前只给「真正改动过」的条目盖时间戳：没变的条目保持原时间，
+// 否则每保存一次整份数据都变成最新，合并时就把对方的改动盖掉了
+let _itemSig = new Map(); // id → 上次写入时的内容签名
+let _catSig  = new Map();
+let _deleted = loadDeleted();
+
+function itemSig(it) {
+  return JSON.stringify([it.name, it.url, it.ddl, it.catId, !!it.done,
+    (it.subtasks || []).map(s => [s.id, s.text, !!s.done])]);
+}
+function catSig(c) { return JSON.stringify([c.name, c.color]); }
+
+function saveItems() {
+  const now = Date.now();
+  const alive = new Set();
+  items.forEach(it => {
+    const sig = itemSig(it);
+    alive.add(it.id);
+    if (_itemSig.get(it.id) !== sig) { it.updatedAt = now; _itemSig.set(it.id, sig); }
+  });
+  [..._itemSig.keys()].forEach(id => {
+    if (!alive.has(id)) { _deleted[id] = now; _itemSig.delete(id); }
+  });
+  localStorage.setItem(STORE_ITEMS, JSON.stringify(items));
+  saveDeleted();
+}
+
+function saveCats() {
+  const now = Date.now();
+  cats.forEach(c => {
+    const sig = catSig(c);
+    if (_catSig.get(c.id) !== sig) { c.updatedAt = now; _catSig.set(c.id, sig); }
+  });
+  [..._catSig.keys()].forEach(id => { if (!cats.some(c => c.id === id)) _catSig.delete(id); });
+  localStorage.setItem(STORE_CATS, JSON.stringify(cats));
+}
+
+function saveDeleted() { localStorage.setItem(STORE_DELETED, JSON.stringify(_deleted)); }
 
 let items = loadItems();
 let cats  = loadCats();
+// 载入时的状态即为基准，避免刚打开页面就把所有条目当成刚改过
+items.forEach(it => _itemSig.set(it.id, itemSig(it)));
+cats.forEach(c => _catSig.set(c.id, catSig(c)));
+let showDone = loadShowDone();
 let currentView = 'timeline';
 let dragItemId  = null;
 
@@ -1272,6 +1472,31 @@ function escH(s) {
 
 function getCat(id) { return cats.find(c => c.id === id); }
 
+// ── 是否展示已完成 ──────────────────────────
+function loadShowDone() {
+  try { return localStorage.getItem(STORE_SHOW_DONE) === '1'; } catch { return false; }
+}
+
+// 各视图统一从这里取数据：默认只给未完成的，勾上开关才把已完成的也放进来
+function visibleItems() {
+  return showDone ? items : items.filter(i => !i.done);
+}
+
+function toggleShowDone(on) {
+  showDone = !!on;
+  try { localStorage.setItem(STORE_SHOW_DONE, showDone ? '1' : '0'); } catch {}
+  render();
+}
+
+function updateShowDoneLabel() {
+  const box = document.getElementById('show-done-toggle');
+  if (box) box.checked = showDone;
+  const cnt = document.getElementById('show-done-count');
+  if (!cnt) return;
+  const n = items.filter(i => i.done).length;
+  cnt.textContent = n ? `(${n})` : '';
+}
+
 function toast(msg) {
   const el = document.getElementById('toast');
   el.textContent = msg;
@@ -1302,15 +1527,378 @@ function promptResolve(val) {
 }
 
 // ═══════════════════════════════════════════════
+//  合并：导入去重 / 多页面同步
+// ═══════════════════════════════════════════════
+// 同一条目靠 id 认；两个页面各自新建的同一件事 id 不同，只能靠「名称+链接」认出来
+function contentKey(it) {
+  const name = String(it.name || '').trim().toLowerCase();
+  const url  = String(it.url || '').trim().toLowerCase().replace(/\/+$/, '');
+  return (name || url) ? name + '|' + url : '';
+}
+function normText(s) { return String(s || '').trim().toLowerCase(); }
+
+// 子任务合并：同 id 按时间取新值；不同 id 但文案相同视为重复，只留一条
+function mergeSubtasks(local, inc) {
+  const out = (local || []).map(s => ({ ...s }));
+  const byId   = new Map(out.map(s => [s.id, s]));
+  const byText = new Map(out.map(s => [normText(s.text), s]));
+  (inc || []).forEach(s => {
+    const same = byId.get(s.id) || byText.get(normText(s.text));
+    if (same) {
+      const incNewer = (s.updatedAt || 0) >= (same.updatedAt || 0);
+      if (s.text && (incNewer || !same.text)) same.text = s.text;
+      same.done = incNewer ? !!s.done : (same.done || !!s.done);
+      same.updatedAt = Math.max(same.updatedAt || 0, s.updatedAt || 0);
+    } else {
+      const copy = { id: s.id || uid(), text: String(s.text || '').trim(), done: !!s.done, updatedAt: s.updatedAt || 0 };
+      out.push(copy);
+      byId.set(copy.id, copy);
+      byText.set(normText(copy.text), copy);
+    }
+  });
+  return out.filter(s => s.text);
+}
+
+// 把 inc 合进 local：较新的一方优先（时间相同就是传入的一方优先，历史数据全是 0 时也适用）
+function mergeInto(local, inc) {
+  const incNewer = (inc.updatedAt || 0) >= (local.updatedAt || 0);
+  ['name', 'url', 'ddl', 'catId'].forEach(k => {
+    if (!inc[k]) return;
+    if (incNewer || !local[k]) local[k] = inc[k];
+  });
+  if (incNewer) local.done = !!inc.done;
+  local.subtasks = mergeSubtasks(local.subtasks, inc.subtasks);
+  local.updatedAt = Math.max(local.updatedAt || 0, inc.updatedAt || 0);
+  return local;
+}
+
+function cloneItem(it) {
+  return { ...it, subtasks: (it.subtasks || []).map(s => ({ ...s })) };
+}
+
+// 合并前后差在哪，给预览用
+function diffItem(before, after) {
+  const parts = [];
+  if (before.name !== after.name) parts.push(`名称 → ${after.name}`);
+  if ((before.url || '') !== (after.url || '')) parts.push('链接');
+  if ((before.ddl || '') !== (after.ddl || '')) parts.push(`截止 ${before.ddl || '—'} → ${after.ddl || '—'}`);
+  if ((before.catId || '') !== (after.catId || '')) parts.push('分类');
+  if (!!before.done !== !!after.done) parts.push(after.done ? '标记完成' : '取消完成');
+  const localIds = new Set(before.subtasks.map(s => s.id));
+  const addSub = after.subtasks.filter(s => !localIds.has(s.id)).length;
+  if (addSub) parts.push(`子任务 +${addSub}`);
+  const editSub = after.subtasks.filter(s => {
+    const b = before.subtasks.find(x => x.id === s.id);
+    return b && (b.text !== s.text || !!b.done !== !!s.done);
+  }).length;
+  if (editSub) parts.push(`子任务改动 ${editSub}`);
+  return parts.join(' · ');
+}
+
+// 算出「把外来数据合进来会发生什么」：不动任何数据，只出计划。
+// 导入预览（可逐条勾选）和标签页自动同步（全选）共用这一份规则。
+function planMerge(rawItems, rawCats, extraDeleted) {
+  const tombOf = id => Math.max(_deleted[id] || 0, (extraDeleted || {})[id] || 0);
+  const catIdMap = new Map();
+  const catOps = []; // { cat } 新增分类 | { cat, patch } 修改分类
+
+  (Array.isArray(rawCats) ? rawCats : []).forEach(raw => {
+    const c = normalizeCat(raw);
+    // 先按 id 对齐，再按名称对齐（不同页面各自建的同名分类算同一个）
+    const t = cats.find(x => x.id === c.id)
+           || cats.find(x => x.name === c.name)
+           || catOps.filter(o => !o.patch).map(o => o.cat).find(x => x.name === c.name);
+    if (!t) { catOps.push({ cat: c }); catIdMap.set(c.id, c.id); return; }
+    catIdMap.set(c.id, t.id);
+
+    const newer = (c.updatedAt || 0) >= (t.updatedAt || 0);
+    const patch = {};
+    if (c.name && (newer || !t.name) && c.name !== t.name) patch.name = c.name;
+    if (c.color && (newer || !t.color) && c.color !== t.color) patch.color = c.color;
+    const mergedAt = Math.max(t.updatedAt || 0, c.updatedAt || 0);
+    if (mergedAt !== (t.updatedAt || 0)) patch.updatedAt = mergedAt;
+    if (!Object.keys(patch).length) return;
+    const prev = catOps.find(o => o.cat === t);
+    if (prev) Object.assign(prev.patch, patch); else catOps.push({ cat: t, patch });
+  });
+
+  // 索引：id 对齐 + 「名称+链接」对齐；计划中的新条目也进索引，同一批里的重复能认出来
+  const index = new Map(items.map(i => [i.id, i]));
+  const indexByKey = new Map();
+  items.forEach(i => { const k = contentKey(i); if (k) indexByKey.set(k, i); });
+
+  const entries = (Array.isArray(rawItems) ? rawItems : []).map(normalizeItem).map(inc => {
+    if (catIdMap.has(inc.catId)) inc.catId = catIdMap.get(inc.catId);
+    const key = contentKey(inc);
+    const target = index.get(inc.id) || (key && indexByKey.get(key));
+    if (target) {
+      const shadow = mergeInto(cloneItem(target), inc);
+      const changed = itemSig(shadow) !== itemSig(target);
+      return { inc, targetId: target.id, status: changed ? 'update' : 'same', diff: changed ? diffItem(target, shadow) : '' };
+    }
+    const tomb = tombOf(inc.id);
+    if (tomb && tomb >= (inc.updatedAt || 0)) {
+      return { inc, targetId: null, status: 'skip', diff: '本页已删除过' };
+    }
+    index.set(inc.id, inc);
+    if (key && !indexByKey.has(key)) indexByKey.set(key, inc);
+    return { inc, targetId: null, status: 'new', diff: inc.subtasks.length ? `含 ${inc.subtasks.length} 个子任务` : '' };
+  });
+
+  return { catOps, entries };
+}
+
+// 落地计划：chosen 为勾选的条目下标，null 表示全部（自动同步用）
+function applyImportPlan(plan, chosen) {
+  const stats = { added: 0, updated: 0, same: 0, skipped: 0, cats: 0 };
+
+  plan.catOps.forEach(op => {
+    if (op.patch) { Object.assign(op.cat, op.patch); stats.cats++; }
+    else if (!cats.some(c => c.id === op.cat.id)) { cats.push(op.cat); stats.cats++; }
+  });
+
+  plan.entries.forEach((e, i) => {
+    if ((chosen && !chosen.has(i)) || e.status === 'skip') { stats.skipped++; return; }
+    const target = e.targetId ? items.find(x => x.id === e.targetId) : null;
+    if (target) {
+      const before = itemSig(target);
+      mergeInto(target, e.inc);
+      if (itemSig(target) !== before) stats.updated++; else stats.same++;
+    } else {
+      items.push(cloneItem(e.inc));
+      stats.added++;
+    }
+  });
+
+  return stats;
+}
+
+// 无预览的合并（标签页自动同步用）：等于把所有可选项都勾上
+function mergeData(rawItems, rawCats, extraDeleted) {
+  return applyImportPlan(planMerge(rawItems, rawCats, extraDeleted), null);
+}
+
+// 合并别处的删除记录
+function mergeDeleted(rawDeleted) {
+  Object.entries(rawDeleted || {}).forEach(([id, ts]) => {
+    const t = +ts || 0;
+    if (t > (_deleted[id] || 0)) _deleted[id] = t;
+  });
+}
+
+// 已经删掉的条目不再出现（防止从别的页面 / 旧备份里被带回来）
+function dropTombstoned() {
+  const before = items.length;
+  items = items.filter(i => !(_deleted[i.id] && _deleted[i.id] >= (i.updatedAt || 0)));
+  return before - items.length;
+}
+
+// ═══════════════════════════════════════════════
+//  导入预览
+// ═══════════════════════════════════════════════
+let _importPlan = null; // { plan, chosen:Set<number>, fileName, deleted }
+
+const IMPORT_STATUS = {
+  new:    { label: '新增',   cls: 'new' },
+  update: { label: '更新',   cls: 'update' },
+  same:   { label: '无变化', cls: 'same' },
+  skip:   { label: '已删除', cls: 'skip' },
+};
+
+function openImportPreview(data, fileName) {
+  const rawItems = Array.isArray(data) ? data : data.items;
+  const rawCats  = Array.isArray(data) ? null : data.cats;
+  const deleted  = Array.isArray(data) ? null : data.deleted;
+  const plan = planMerge(rawItems, rawCats, deleted);
+
+  _importPlan = { plan, fileName: fileName || '', deleted, chosen: new Set() };
+  // 默认只勾「新增」和「有变化」的，已存在的重复项与已删项默认不选
+  plan.entries.forEach((e, i) => {
+    if (e.status === 'new' || e.status === 'update') _importPlan.chosen.add(i);
+  });
+  renderImportPreview();
+  document.getElementById('import-modal').classList.add('show');
+}
+
+function closeImportModal() {
+  document.getElementById('import-modal').classList.remove('show');
+  _importPlan = null;
+}
+
+function importCatName(id) {
+  if (!id) return '未分类';
+  const c = cats.find(x => x.id === id)
+         || (_importPlan && _importPlan.plan.catOps.map(o => o.cat).find(x => x.id === id));
+  return c ? c.name : '未分类';
+}
+
+function renderImportPreview() {
+  const p = _importPlan;
+  if (!p) return;
+  const entries = p.plan.entries;
+  const count = k => entries.filter(e => e.status === k).length;
+
+  document.getElementById('import-file-name').textContent = p.fileName;
+  document.getElementById('import-summary').innerHTML =
+    `<span class="imp-chip">新增 <b>${count('new')}</b></span>` +
+    `<span class="imp-chip">更新 <b>${count('update')}</b></span>` +
+    `<span class="imp-chip">已存在 <b>${count('same')}</b></span>` +
+    `<span class="imp-chip">本页已删 <b>${count('skip')}</b></span>` +
+    (p.plan.catOps.length ? `<span class="imp-chip">分类 <b>${p.plan.catOps.length}</b></span>` : '');
+
+  const list = document.getElementById('import-list');
+  list.innerHTML = '';
+  if (!entries.length) {
+    const empty = document.createElement('div');
+    empty.className = 'import-empty';
+    empty.textContent = '这个文件里没有可导入的条目';
+    list.appendChild(empty);
+  }
+
+  entries.forEach((e, i) => {
+    const st = IMPORT_STATUS[e.status];
+    const selectable = e.status === 'new' || e.status === 'update';
+
+    const row = document.createElement('label');
+    row.className = 'import-row is-' + st.cls;
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = p.chosen.has(i);
+    cb.disabled = !selectable;
+    cb.onchange = () => {
+      if (cb.checked) p.chosen.add(i); else p.chosen.delete(i);
+      updateImportSelection();
+    };
+
+    const main = document.createElement('div');
+    main.className = 'imp-main';
+    const nameEl = document.createElement('div');
+    nameEl.className = 'imp-name';
+    nameEl.textContent = (e.inc.name || e.inc.url || '(未命名)').slice(0, 120);
+
+    const meta = document.createElement('div');
+    meta.className = 'imp-meta';
+    const bits = [importCatName(e.inc.catId), e.inc.ddl ? fmtDate(e.inc.ddl) : '无截止日期',
+                  `${e.inc.subtasks.length} 个子任务`];
+    if (e.inc.done) bits.push('已完成');
+    meta.innerHTML = bits.map(b => `<span>${escH(b)}</span>`).join('') +
+      (e.diff ? `<span class="imp-diff">${escH(e.diff)}</span>` : '');
+
+    main.append(nameEl, meta);
+
+    const badge = document.createElement('span');
+    badge.className = 'imp-badge ' + st.cls;
+    badge.textContent = st.label;
+
+    row.append(cb, main, badge);
+    list.appendChild(row);
+  });
+
+  updateImportSelection();
+}
+
+function updateImportSelection() {
+  const p = _importPlan;
+  if (!p) return;
+  const entries = p.plan.entries;
+  const selectable = entries.map((e, i) => i).filter(i => entries[i].status === 'new' || entries[i].status === 'update');
+  const chosen = selectable.filter(i => p.chosen.has(i));
+
+  const allBox = document.getElementById('import-all');
+  allBox.checked = selectable.length > 0 && chosen.length === selectable.length;
+  allBox.indeterminate = chosen.length > 0 && chosen.length < selectable.length;
+
+  const add = chosen.filter(i => entries[i].status === 'new').length;
+  const upd = chosen.filter(i => entries[i].status === 'update').length;
+  document.getElementById('import-selected').textContent =
+    `已选 ${chosen.length} / ${selectable.length}（新增 ${add} · 更新 ${upd}）`;
+
+  const btn = document.getElementById('import-confirm');
+  btn.disabled = chosen.length === 0;
+  btn.style.opacity = chosen.length ? '1' : '.5';
+  btn.style.cursor = chosen.length ? 'pointer' : 'not-allowed';
+  btn.textContent = chosen.length ? `导入选中的 ${chosen.length} 条` : '导入选中项';
+}
+
+function toggleImportAll(on) {
+  const p = _importPlan;
+  if (!p) return;
+  p.plan.entries.forEach((e, i) => {
+    if (e.status === 'new' || e.status === 'update') {
+      if (on) p.chosen.add(i); else p.chosen.delete(i);
+    }
+  });
+  renderImportPreview();
+}
+
+function selectImportOnly(status) {
+  const p = _importPlan;
+  if (!p) return;
+  p.chosen.clear();
+  p.plan.entries.forEach((e, i) => { if (e.status === status) p.chosen.add(i); });
+  renderImportPreview();
+}
+
+function confirmImport() {
+  const p = _importPlan;
+  if (!p) return;
+  if (!p.chosen.size) { toast('请先勾选要导入的条目'); return; }
+
+  mergeDeleted(p.deleted);
+  dropTombstoned();
+  const s = applyImportPlan(p.plan, p.chosen);
+  saveItems();
+  saveCats();
+  render();
+
+  const rest = p.plan.entries.length - p.chosen.size;
+  closeImportModal();
+  toast(`已导入：新增 ${s.added} · 更新 ${s.updated}` + (rest > 0 ? ` · 跳过 ${rest}` : ''));
+}
+
+// 同一页开在多个标签页 / 窗口时：任一页保存后，其它页把差异合并进来再写回，
+// 两边的改动都能留下来（storage 事件只会在「别的」标签页触发）
+window.addEventListener('storage', e => {
+  if (e.key === STORE_DELETED) {
+    _deleted = loadDeleted();
+    if (dropTombstoned()) { saveItems(); render(); }
+    return;
+  }
+  if (e.key !== STORE_ITEMS && e.key !== STORE_CATS) return;
+
+  let data;
+  try { data = JSON.parse(e.newValue || '[]'); } catch { return; }
+  if (!Array.isArray(data)) return;
+
+  if (e.key === STORE_ITEMS) {
+    const before = JSON.stringify(items);
+    const s = mergeData(data, null);
+    dropTombstoned();
+    if (JSON.stringify(items) !== before) {
+      saveItems(); // 把合并结果写回，另一端收到后即为最终状态
+      render();
+      if (currentTaskId) renderSubtasks();
+      if (s.added) toast(`其它页面新增了 ${s.added} 条，已同步`);
+    }
+  } else {
+    const before = JSON.stringify(cats);
+    mergeData(null, data);
+    if (JSON.stringify(cats) !== before) { saveCats(); render(); }
+  }
+});
+
+// ═══════════════════════════════════════════════
 //  导出 / 导入数据
 // ═══════════════════════════════════════════════
 function exportData() {
   const data = {
     _type: 'todo-board-backup',
-    version: 4,
+    version: 5,
     exportedAt: new Date().toISOString(),
-    items: items.map(normalizeItem), // 去掉临时字段(_sel)、保证含 subtasks
+    items: items.map(normalizeItem), // 去掉临时字段(_sel)、保证含 subtasks / updatedAt
     cats,
+    deleted: _deleted,               // 带上删除记录，导入到别的页面时不会把已删条目带回来
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -1324,6 +1912,7 @@ function exportData() {
   toast('已导出备份 ✓');
 }
 
+// 导入先出预览：算出合并计划，让用户看完再逐条勾选
 function importData(input) {
   const file = input.files && input.files[0];
   input.value = ''; // 允许重复选择同一文件
@@ -1335,18 +1924,10 @@ function importData(input) {
     catch { toast('文件格式错误，无法解析'); return; }
 
     const newItems = Array.isArray(data) ? data : data.items;
-    const newCats  = Array.isArray(data) ? null : data.cats;
     if (!Array.isArray(newItems)) { toast('无效的备份文件'); return; }
+    if (!newItems.length) { toast('文件里没有条目'); return; }
 
-    const n = newItems.length;
-    if (!confirm(`导入将覆盖当前数据（${items.length} 条 → ${n} 条），是否继续？`)) return;
-
-    items = newItems.map(normalizeItem); // 兼容任意历史版本（缺 subtasks 等）
-    if (Array.isArray(newCats) && newCats.length) cats = newCats;
-    saveItems();
-    saveCats();
-    render();
-    toast(`已导入 ${n} 条数据 ✓`);
+    openImportPreview(data, file.name);
   };
   reader.readAsText(file);
 }
@@ -1526,7 +2107,12 @@ function deleteItem(id) {
 
 function toggleDone(id) {
   const it = items.find(i => i.id === id);
-  if (it) { it.done = !it.done; saveItems(); render(); }
+  if (!it) return;
+  it.done = !it.done;
+  saveItems();
+  render();
+  // 没开「显示已完成」时，勾完就从列表里消失了，给个提示免得以为丢了
+  if (it.done && !showDone) toast('已完成 · 勾选「显示已完成」可以回看');
 }
 
 function deleteSelected() {
@@ -1549,7 +2135,9 @@ function clearDone() {
 }
 
 function toggleAll(cb) {
-  items.forEach(i => i._sel = cb.checked);
+  // 只对当前看得见的条目生效，避免把隐藏的已完成条目也选中
+  const vis = new Set(visibleItems().map(i => i.id));
+  items.forEach(i => { i._sel = cb.checked && vis.has(i.id); });
   render();
 }
 
@@ -1638,8 +2226,9 @@ function renderKanban() {
   const wrap = document.getElementById('kanban-view');
   wrap.innerHTML = '';
 
+  const list = visibleItems();
   cats.forEach(cat => {
-    const catItems = items.filter(i => i.catId === cat.id);
+    const catItems = sortForColumn(list.filter(i => i.catId === cat.id));
 
     const col = document.createElement('div');
     col.className = 'kanban-col';
@@ -1697,7 +2286,7 @@ function renderKanban() {
   });
 
   // 未分类
-  const uncatItems = items.filter(i => !cats.find(c => c.id === i.catId));
+  const uncatItems = sortForColumn(list.filter(i => !cats.find(c => c.id === i.catId)));
   if (uncatItems.length) {
     const col = document.createElement('div');
     col.className = 'kanban-col';
@@ -1877,7 +2466,13 @@ function renderList() {
     return;
   }
 
-  tbody.innerHTML = items.map((it, idx) => {
+  const list = sortForColumn(visibleItems()); // 已完成只会在勾选开关后出现，且排未完成的后面
+  if (!list.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="8">${items.length} 条任务全部已完成，勾选上方「显示已完成」可查看</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map((it, idx) => {
     const cat = getCat(it.catId);
     const st  = ddlStatus(it.ddl, it.done);
 
@@ -2062,6 +2657,7 @@ function renderTimeline() {
   const wrap = document.getElementById('timeline-view');
   wrap.innerHTML = '';
 
+  const list = visibleItems();
   const t = today();
   const start = parseISO(t);
   const end = new Date(start);
@@ -2069,7 +2665,7 @@ function renderTimeline() {
   const endIso = isoDate(end);
 
   // 逾期列（截止日期早于今天且未在范围内）
-  const overdueItems = items.filter(i => i.ddl && i.ddl < t);
+  const overdueItems = list.filter(i => i.ddl && i.ddl < t);
   if (overdueItems.length) {
     wrap.appendChild(makeTimelineCol({
       cls: 'tl-overdue', wd: '逾期', relLabel: '待处理',
@@ -2083,7 +2679,7 @@ function renderTimeline() {
     const dIso = isoDate(cur);
     const dow = cur.getDay(); // 0=日 6=六
     const isWeekend = dow === 0 || dow === 6;
-    const colItems = items.filter(i => i.ddl === dIso);
+    const colItems = list.filter(i => i.ddl === dIso);
     const rel = fmtDDL(dIso); // 今天/明天/…
     const relLabel = (rel === '今天' || rel === '明天') ? rel : '';
     const dateLabel = fmtDate(dIso); // 年月日
@@ -2104,7 +2700,7 @@ function renderTimeline() {
   }
 
   // 更晚（两个月之后）
-  const laterItems = items.filter(i => i.ddl && i.ddl > endIso);
+  const laterItems = list.filter(i => i.ddl && i.ddl > endIso);
   if (laterItems.length) {
     wrap.appendChild(makeTimelineCol({
       cls: 'tl-nodate', wd: '更晚', relLabel: '以后',
@@ -2113,7 +2709,7 @@ function renderTimeline() {
   }
 
   // 无日期
-  const noDateItems = items.filter(i => !i.ddl);
+  const noDateItems = list.filter(i => !i.ddl);
   if (noDateItems.length) {
     wrap.appendChild(makeTimelineCol({
       cls: 'tl-nodate', wd: '无日期',
@@ -2145,14 +2741,15 @@ function renderInitiator() {
 
   // 分组
   const groups = new Map();
-  items.forEach(it => {
+  visibleItems().forEach(it => {
     const key = getInitiator(it.name) || '__none__';
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(it);
   });
 
   if (!groups.size) {
-    wrap.innerHTML = '<div style="color:var(--text3);padding:40px;font-size:13px">还没有任务</div>';
+    const tip = items.length ? '全部任务都已完成，勾选上方「显示已完成」可查看' : '还没有任务';
+    wrap.innerHTML = `<div style="color:var(--text3);padding:40px;font-size:13px">${tip}</div>`;
     return;
   }
 
@@ -2209,6 +2806,7 @@ function renderInitiator() {
 function render() {
   renderCatSelect();
   updateStats();
+  updateShowDoneLabel();
   if (currentView === 'kanban') {
     renderKanban();
   } else if (currentView === 'timeline') {
@@ -2479,6 +3077,11 @@ document.getElementById('new-subtask').addEventListener('paste', e => {
     addSubtasks(currentTaskId, txt);
     e.target.value = '';
   }
+});
+
+// 导入预览打开时，Esc 关闭
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && _importPlan) closeImportModal();
 });
 
 // 默认打开「日程」视图
