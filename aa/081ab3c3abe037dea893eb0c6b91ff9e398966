@@ -1,0 +1,46 @@
+anki.html
+  s_4df157f6636ce0::t_57c938b78ba1cf 779-781
+  s_4df157f6636ce0::t_73d4b63a3f6bc6 2114,2124,2127-2129,2138
+  s_4df157f6636ce0::t_f9eadc137f1cf1 2137
+  s_4df157f6636ce0::t_2fc9cd5d4a9a09 1167
+  s_4df157f6636ce0::t_51c9592094c4d5 764
+  s_4df157f6636ce0::t_260ca4bd53293f 1028-1029
+  s_4df157f6636ce0::t_7df40d679e3405 2048
+  s_4df157f6636ce0::t_33110b9d1c7de1 1097-1098
+  s_4df157f6636ce0::t_c6e3bd664c2ccf 260-270
+  s_4df157f6636ce0::t_771feec351cc55 1086
+  s_4df157f6636ce0::t_c5b269caded766 1259-1260,1263-1264,1266-1287,1291,1296-1299,1301-1313,1315-1327,1329-1353
+  s_4df157f6636ce0::t_9d1fb9005fc4e2 1328
+  s_4df157f6636ce0::t_5bbcb8fe431371 2320,2334-2341
+  s_4df157f6636ce0::t_ded2909a73b41b 2267-2268,2272-2282
+  s_4df157f6636ce0::t_604c89f15e3ad6 1253,1258
+  s_4df157f6636ce0::t_01032e2015b90a 985-1008,1017
+  s_4df157f6636ce0::t_d160bf1e894f1e 1116
+  s_4df157f6636ce0::t_5e744b2112c161 1144-1146,1149-1153,1155
+  s_4df157f6636ce0::t_9bce9c5760df65 1668
+  s_4df157f6636ce0::t_7fd678292823dc 2266
+  s_4df157f6636ce0::t_586fcc1187fb4a 762,765
+  s_4df157f6636ce0::t_55cfdca192b523 809-810,816
+  s_4df157f6636ce0::t_fbb9a194cd355f 2080-2112,2115-2123,2125-2126,2134,2136,2139
+  s_4df157f6636ce0::t_ce7c32c35d4ac2 1667
+  s_4df157f6636ce0::t_320d9f5ebb7fb6 2321-2333
+  s_4df157f6636ce0::t_fb4f6cba77f10e 1300,1314
+  s_4df157f6636ce0::t_d60e4b2603d6fe 222-229
+  s_4df157f6636ce0::t_71dfd2573d20fc 2219
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.51-trip",
+  "base_commit_sha": "aa081ab3c3abe037dea893eb0c6b91ff9e398966",
+  "prompts": {},
+  "sessions": {
+    "s_4df157f6636ce0": {
+      "agent_id": {
+        "tool": "chengxiaobang",
+        "id": "s_z07h1o3f3ef9",
+        "model": "auto(free)"
+      },
+      "human_author": "Wang Yan <wangyan@trip.com>"
+    }
+  }
+}
