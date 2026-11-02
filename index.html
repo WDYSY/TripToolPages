@@ -64,13 +64,17 @@ button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer}
 .tags button:hover{border-color:var(--muted);color:var(--text)}
 .tags button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
 
-/* 卡片 */
+/* 卡片：6 列网格，大卡占 2×2，小卡占 1×1（正好是大卡的一半宽、一半高）。
+   第一排 3 个大卡铺满 6 列；第二排起每 4 个小卡拼成一个 2×2 方块，
+   占一个大卡的格子，与大卡上下左右严格对齐。 */
 main{padding-bottom:10px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-auto-rows:112px;gap:14px}
 .card{
   display:flex;flex-direction:column;gap:8px;background:var(--panel);border:1px solid var(--line);
   border-radius:15px;padding:17px 18px 15px;transition:.16s;position:relative;overflow:hidden;
 }
+.card.wide{grid-column:span 2;grid-row:span 2}
+.card.small{grid-column:span 1;grid-row:span 1;padding:12px 14px;gap:5px;border-radius:13px}
 .card:hover{border-color:var(--line-strong);box-shadow:var(--shadow);transform:translateY(-2px)}
 .card:after{
   content:"打开 ↗";position:absolute;top:15px;right:16px;font-size:11.5px;color:var(--accent);
@@ -86,6 +90,18 @@ main{padding-bottom:10px}
   font-weight:600;white-space:nowrap;
 }
 .card .date{margin-left:auto;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+/* 小卡：空间只有大卡的 1/4，只留图标 + 标题 + 一行说明 */
+.card.small .icon{font-size:15px}
+.card.small:after{top:12px;right:12px;font-size:10.5px}
+.card.small h2{
+  font-size:12.5px;line-height:1.4;padding-right:0;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.card.small p{
+  font-size:11px;line-height:1.5;color:var(--muted);min-height:0;
+  display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;
+}
+.card.small .meta{display:none}
 .empty{text-align:center;color:var(--muted);padding:60px 0;font-size:13px}
 
 /* 底部 */
@@ -105,11 +121,18 @@ footer pre{
 footer pre code{background:none;padding:0;line-height:1.7}
 footer .foot{font-size:12px;color:var(--muted);margin-top:22px}
 footer .foot a{color:var(--accent)}
+@media (max-width:900px){
+  .grid{grid-template-columns:1fr;grid-auto-rows:auto;gap:12px}
+  .card.wide,.card.small{grid-column:auto!important;grid-row:auto!important}
+  .card.small{padding:15px 17px;gap:7px;border-radius:14px}
+  .card.small h2{font-size:14px;padding-right:52px}
+  .card.small p{font-size:12.5px;color:var(--text-2);min-height:0;-webkit-line-clamp:3}
+  .card.small .meta{display:flex}
+}
 @media (max-width:640px){
   .wrap{padding:0 16px}
   .hero{padding:26px 0 16px}
   .brand .gh{display:none}
-  .grid{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -144,6 +167,8 @@ footer .foot a{color:var(--accent)}
     <p>在本文件底部的 <code>PAGES</code> 数组里加一条（放在最前面就会排在最上）：</p>
     <pre><code>{ file: 'xxx.html', title: '页面标题', desc: '一句话说明这个工具干什么',
   tags: ['分类'], icon: '🧩', date: '2026-11-02' },</code></pre>
+    <p><strong>排版规则</strong>：默认前 3 个是大卡（占 2×2 格），后面的都是小卡（占 1 格，宽高是大卡的一半）；每 4 个小卡会自动拼成一个 2×2 方块，正好占一个大卡的位置，从左往右排。</p>
+    <p>想让某个页面变大/变小，在这条上加 <code>size: 'wide'</code> 或 <code>size: 'small'</code> 即可。</p>
     <p>标签会自动出现在上方的筛选条里，不需要另外维护。</p>
   </details>
   <p class="foot">发布地址：<a href="https://wdysy.github.io/TripToolPages/" target="_blank" rel="noopener">wdysy.github.io/TripToolPages</a> · 新增页面时记得把 <code>PAGES</code> 一起提交</p>
@@ -154,19 +179,24 @@ footer .foot a{color:var(--accent)}
    页面清单：新增页面只要在这里加一条即可，其余全部自动渲染
    file  必填，本目录下的文件名
    title 必填，卡片标题
-   desc  一句话说明
+   desc  一句话说明（小卡只显示一行，大卡显示全文）
    tags  分类标签，会自动汇总到顶部筛选条
    icon  一个 emoji
    date  更新日期 YYYY-MM-DD
+   size  可选：'wide' 大卡 / 'small' 小卡；不写就是「前 3 个为大卡，其余为小卡」
+
+   排版规则：6 列网格，大卡占 2×2，小卡占 1×1（宽高各是大卡的一半）。
+   前面 3 个大卡铺满第一排；之后的小卡每 4 个拼成一个 2×2 方块，
+   正好占一个大卡的格子，从左往右排，排满 3 个格子后自动换到下一排。
    ============================================================ */
 var PAGES = [
   {
-    file: 'anki.html',
-    title: 'Anki 卡片记忆',
-    desc: '批量导入 CSV / Anki .apkg·.colpkg，#标签分类分组，侧边抽屉读笔记，按艾宾浩斯曲线安排每日复习，可导出 Markdown / JSON / CSV 存档。',
-    tags: ['学习', '记忆卡'],
-    icon: '🃏',
-    date: '2026-11-02'
+    file: 'todo.html',
+    title: 'Todo Board 待办看板',
+    desc: '看板 / 列表 / 日程三种视图，支持分类、链接、截止日期，粘贴多行文本批量添加，可导入导出。',
+    tags: ['效率', '待办'],
+    icon: '📋',
+    date: '2026-10-15'
   },
   {
     file: 'json-diff-tool.html',
@@ -177,12 +207,12 @@ var PAGES = [
     date: '2026-10-30'
   },
   {
-    file: 'todo.html',
-    title: 'Todo Board 待办看板',
-    desc: '看板 / 列表 / 日程三种视图，支持分类、链接、截止日期，粘贴多行文本批量添加，可导入导出。',
-    tags: ['效率', '待办'],
-    icon: '📋',
-    date: '2026-10-15'
+    file: 'anki.html',
+    title: 'Anki 卡片记忆',
+    desc: '批量导入 CSV / Anki .apkg·.colpkg，#标签分类分组，侧边抽屉读笔记，按艾宾浩斯曲线安排每日复习，可导出 Markdown / JSON / CSV 存档。',
+    tags: ['学习', '记忆卡'],
+    icon: '🃏',
+    date: '2026-11-02'
   },
   {
     file: 'url生成tabrenamer正则匹配.html',
@@ -248,15 +278,32 @@ var PAGES = [
   }
 
   function render(){
-    var list = PAGES.filter(match).sort(function(a, b){
-      return String(b.date || '').localeCompare(String(a.date || ''));
-    });
+    var list = PAGES.filter(match);
     renderTags();
     document.getElementById('count').textContent = list.length + ' / ' + PAGES.length + ' 个工具';
     document.getElementById('empty').hidden = list.length > 0;
+
+    // 大卡：显式写了 size 就按写的来，否则 PAGES 里前 3 个算大卡
+    function isWide(p){ return p.size ? p.size === 'wide' : PAGES.indexOf(p) < 3; }
+    var wideCount = list.filter(isWide).length;
+    var bandTop = Math.ceil(wideCount / 3) * 2 + 1;  // 大卡占满的行之后，小卡从第几行开始
+    var smallIdx = 0;
+
     document.getElementById('grid').innerHTML = list.map(function(p){
+      var wide = isWide(p);
+      var style = '';
+      if(!wide){
+        // 每 4 个小卡拼成一个 2×2 方块，正好等于一个大卡的位置；
+        // 方块从左往右排，排满 3 个（一整排）后换到下一排
+        var block = Math.floor(smallIdx / 4), within = smallIdx % 4;
+        var col = (block % 3) * 2 + (within % 2) + 1;
+        var row = bandTop + Math.floor(block / 3) * 2 + Math.floor(within / 2);
+        style = ' style="grid-column:' + col + ';grid-row:' + row + '"';
+        smallIdx++;
+      }
       var tags = (p.tags || []).map(function(t){ return '<span class="chip">' + esc(t) + '</span>'; }).join('');
-      return '<a class="card" href="' + encodeURI(p.file) + '">' +
+      return '<a class="card ' + (wide ? 'wide' : 'small') + '" href="' + encodeURI(p.file) + '"' +
+        ' title="' + esc(p.title + ' · ' + p.desc) + '"' + style + '>' +
         '<div class="icon">' + esc(p.icon || '🧩') + '</div>' +
         '<h2>' + esc(p.title) + '</h2>' +
         '<p>' + esc(p.desc) + '</p>' +
