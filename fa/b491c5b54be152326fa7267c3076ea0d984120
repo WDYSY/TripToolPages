@@ -1,0 +1,19 @@
+index.html
+  s_93d5b92ca9aeae::t_c7977b8a49a9ae 1-294
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.51-trip",
+  "base_commit_sha": "fab491c5b54be152326fa7267c3076ea0d984120",
+  "prompts": {},
+  "sessions": {
+    "s_93d5b92ca9aeae": {
+      "agent_id": {
+        "tool": "chengxiaobang",
+        "id": "s_96w7h5qm8g7y",
+        "model": "auto(free)"
+      },
+      "human_author": "Wang Yan <wangyan@trip.com>"
+    }
+  }
+}
