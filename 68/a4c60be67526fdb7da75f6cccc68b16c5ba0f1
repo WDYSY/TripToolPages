@@ -1,0 +1,23 @@
+index.html
+  s_93d5b92ca9aeae::t_f9e402531065cc 182,186-190,194-199,210-215
+  s_93d5b92ca9aeae::t_766dacc58e5254 281,285-291,293-303,305-306
+  s_93d5b92ca9aeae::t_f20bebbf95c45d 67-69,71,76-77,93-104
+  s_93d5b92ca9aeae::t_03144f09f6aa06 124-131
+  s_93d5b92ca9aeae::t_9d0dea72225427 170-171
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.51-trip",
+  "base_commit_sha": "68a4c60be67526fdb7da75f6cccc68b16c5ba0f1",
+  "prompts": {},
+  "sessions": {
+    "s_93d5b92ca9aeae": {
+      "agent_id": {
+        "tool": "chengxiaobang",
+        "id": "s_96w7h5qm8g7y",
+        "model": "auto(free)"
+      },
+      "human_author": "Wang Yan <wangyan@trip.com>"
+    }
+  }
+}
