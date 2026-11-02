@@ -1,0 +1,2132 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Anki Lite · 本地卡片记忆</title>
+<style>
+:root{
+  --bg:#f4f5f7; --panel:#fff; --sidebar:#fafbfc;
+  --line:#e5e7eb; --line-strong:#d5d8de;
+  --text:#1b1f24; --text-2:#5a6169; --muted:#8b929c;
+  --accent:#3568f0; --accent-2:#eaf0ff;
+  --again:#e05c4b; --hard:#d0821a; --good:#2c9c6d; --easy:#3b7ddd;
+  --shadow:0 1px 2px rgba(16,24,40,.04),0 10px 28px rgba(16,24,40,.07);
+  --radius:14px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#14161a; --panel:#1b1e24; --sidebar:#171a1f;
+    --line:#272b33; --line-strong:#333944;
+    --text:#e6e8ec; --text-2:#a6adb8; --muted:#79818d;
+    --accent:#5b8cff; --accent-2:#1d2b47;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 28px rgba(0,0,0,.35);
+  }
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer}
+input,textarea,select{font-family:inherit;font-size:inherit;color:inherit}
+::selection{background:var(--accent-2)}
+
+/* ---------- 布局 ---------- */
+.app{display:grid;grid-template-columns:236px 1fr;height:100vh;overflow:hidden}
+.sidebar{
+  background:var(--sidebar);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;padding:16px 12px 10px;gap:16px;overflow:hidden;
+}
+.brand{display:flex;align-items:center;gap:10px;padding:0 6px}
+.logo{
+  width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#3568f0,#5b8cff);
+  color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px;letter-spacing:.5px;
+}
+.brand-title{font-weight:650;font-size:14px;letter-spacing:.2px}
+.brand-sub{font-size:11px;color:var(--muted);margin-top:-3px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{
+  display:flex;align-items:center;gap:8px;width:100%;text-align:left;
+  background:none;border:0;padding:8px 10px;border-radius:9px;color:var(--text-2);
+}
+.nav button:hover{background:rgba(127,127,127,.08);color:var(--text)}
+.nav button.on{background:var(--accent-2);color:var(--accent);font-weight:600}
+.nav .grow{flex:1}
+.nav .count{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.nav button.on .count{color:var(--accent)}
+.nav .dot{width:6px;height:6px;border-radius:50%;background:var(--again)}
+.tag-section{display:flex;flex-direction:column;gap:6px;min-height:0;flex:1}
+.section-title{
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.6px;
+  padding:0 8px;text-transform:uppercase;
+}
+.section-title .mini{background:none;border:0;color:var(--muted);font-size:11px;padding:0}
+.section-title .mini:hover{color:var(--accent)}
+.tag-list{overflow:auto;display:flex;flex-direction:column;gap:1px;padding-right:2px}
+.tag-item{
+  display:flex;align-items:center;gap:6px;width:100%;background:none;border:0;
+  text-align:left;padding:6px 10px;border-radius:8px;color:var(--text-2);font-size:13px;
+}
+.tag-item:hover{background:rgba(127,127,127,.08)}
+.tag-item.on{background:var(--accent-2);color:var(--accent);font-weight:600}
+.tag-item .tag-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag-item .count{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tag-empty{font-size:12px;color:var(--muted);padding:6px 10px;line-height:1.7}
+.sidebar-foot{font-size:11px;color:var(--muted);padding:8px 8px 0;border-top:1px solid var(--line);line-height:1.6}
+
+.main{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.topbar{
+  height:56px;flex:0 0 56px;display:flex;align-items:center;gap:12px;
+  padding:0 20px;border-bottom:1px solid var(--line);background:var(--panel);
+}
+.topbar h1{font-size:15px;margin:0;font-weight:650;letter-spacing:.2px}
+.topbar .sub{font-size:12px;color:var(--muted)}
+.topbar .spacer{flex:1}
+.content{flex:1;overflow:auto;padding:20px 24px 80px;scroll-behavior:smooth}
+
+/* ---------- 通用控件 ---------- */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-strong);
+  background:var(--panel);padding:7px 13px;border-radius:9px;color:var(--text-2);
+  font-size:13px;transition:.15s;white-space:nowrap;
+}
+.btn:hover{border-color:var(--muted);color:var(--text)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.primary:hover{filter:brightness(1.06);color:#fff}
+.btn.ghost{background:none;border-color:transparent}
+.btn.ghost:hover{background:rgba(127,127,127,.1)}
+.btn.danger{color:var(--again);border-color:rgba(224,92,75,.35)}
+.btn.danger:hover{background:rgba(224,92,75,.08);border-color:var(--again)}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.field{
+  width:100%;border:1px solid var(--line-strong);background:var(--panel);
+  border-radius:9px;padding:8px 11px;outline:none;transition:.15s;
+}
+.field:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-2)}
+select.field{
+  -webkit-appearance:none;appearance:none;
+  padding:8px 30px 8px 12px;
+  min-width:106px;width:auto;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%238b929c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 11px center;
+  background-size:11px 7px;
+}
+textarea.field{resize:vertical;line-height:1.7;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+.chip{
+  display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:999px;
+  background:var(--accent-2);color:var(--accent);font-size:11.5px;font-weight:600;white-space:nowrap;
+}
+.chip.gray{background:rgba(127,127,127,.12);color:var(--text-2)}
+.chip.red{background:rgba(224,92,75,.12);color:var(--again)}
+.chip.green{background:rgba(44,156,109,.13);color:var(--good)}
+.badge-due{font-size:11px;color:var(--hard);font-weight:600}
+.badge-due.now{color:var(--again)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.hint{font-size:12px;color:var(--muted);line-height:1.75}
+.kbd{
+  display:inline-block;padding:1px 5px;border:1px solid var(--line-strong);border-bottom-width:2px;
+  border-radius:5px;font-size:11px;color:var(--text-2);background:var(--sidebar);font-family:ui-monospace,monospace;
+}
+
+/* ---------- 复习页 ---------- */
+.review-wrap{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.progress{height:4px;border-radius:4px;background:rgba(127,127,127,.15);overflow:hidden}
+.progress>i{display:block;height:100%;background:var(--accent);border-radius:4px;transition:width .3s}
+.review-meta{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)}
+.review-meta .right{margin-left:auto;display:flex;gap:6px;align-items:center}
+.review-card{
+  background:var(--panel);border:1px solid var(--line);border-radius:18px;
+  box-shadow:var(--shadow);padding:34px 38px;min-height:300px;display:flex;flex-direction:column;
+}
+.face{flex:1;display:flex;flex-direction:column;justify-content:center}
+.face .label{
+  font-size:11px;font-weight:700;letter-spacing:1px;color:var(--muted);
+  text-transform:uppercase;margin-bottom:12px;
+}
+.md{font-size:16.5px;line-height:1.75;word-break:break-word}
+.face.back{border-top:1px dashed var(--line);margin-top:22px;padding-top:22px}
+.face .md{font-size:16px}
+.face.hidden{display:none}
+.reveal-hint{
+  text-align:center;color:var(--muted);font-size:12.5px;padding:14px 0 0;
+}
+.grade-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.grade{
+  border:1px solid var(--line-strong);background:var(--panel);border-radius:12px;
+  padding:11px 8px;display:flex;flex-direction:column;align-items:center;gap:2px;
+  transition:.15s;font-weight:600;
+}
+.grade small{font-weight:400;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.grade:hover{transform:translateY(-1px)}
+.grade[data-grade=again]:hover{border-color:var(--again);color:var(--again);background:rgba(224,92,75,.06)}
+.grade[data-grade=hard]:hover{border-color:var(--hard);color:var(--hard);background:rgba(208,130,26,.06)}
+.grade[data-grade=good]:hover{border-color:var(--good);color:var(--good);background:rgba(44,156,109,.06)}
+.grade[data-grade=easy]:hover{border-color:var(--easy);color:var(--easy);background:rgba(59,125,221,.06)}
+.done{max-width:620px;margin:40px auto;text-align:center;padding:36px}
+.done .emoji{font-size:40px}
+.done h2{margin:10px 0 4px;font-size:20px}
+.done .nums{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:24px 0}
+.done .num{background:var(--sidebar);border-radius:12px;padding:12px}
+.done .num b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+.done .num span{font-size:11.5px;color:var(--muted)}
+
+/* ---------- 卡片库 ---------- */
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.toolbar .search{flex:1;min-width:200px;position:relative}
+.toolbar .search .field{padding-left:30px}
+.toolbar .search:before{
+  content:"⌕";position:absolute;left:10px;top:50%;transform:translateY(-52%);
+  color:var(--muted);font-size:15px;pointer-events:none;
+}
+.selbar{
+  display:flex;align-items:center;gap:10px;padding:8px 12px;margin-bottom:12px;
+  background:var(--accent-2);border-radius:10px;color:var(--accent);font-size:12.5px;font-weight:600;
+}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:12px}
+.tagbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:-2px 0 14px}
+.tagbar-label{
+  font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--muted);
+  text-transform:uppercase;margin-right:2px;
+}
+.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:9px;overflow:hidden;background:var(--panel);flex:0 0 auto}
+.seg button{border:0;background:none;padding:7px 12px;font-size:12.5px;color:var(--text-2);border-left:1px solid var(--line)}
+.seg button:first-child{border-left:0}
+.seg button:hover{background:rgba(127,127,127,.08)}
+.seg button.on{background:var(--accent);color:#fff;font-weight:600}
+.group{margin-bottom:22px}
+.group-head{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:13px;font-weight:600}
+.group-head .count{font-weight:400;font-size:12px;color:var(--muted)}
+.tile{
+  background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:14px 15px;
+  cursor:pointer;transition:.16s;position:relative;display:flex;flex-direction:column;gap:8px;
+  min-height:118px;
+}
+.tile:hover{border-color:var(--line-strong);box-shadow:var(--shadow);transform:translateY(-1px)}
+.tile.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-2)}
+.tile.suspended{opacity:.55}
+.tile-front{
+  font-size:14px;font-weight:600;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;
+  -webkit-box-orient:vertical;overflow:hidden;word-break:break-word;
+}
+.tile-back{
+  font-size:12.5px;color:var(--text-2);line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;
+  -webkit-box-orient:vertical;overflow:hidden;
+}
+.tile-foot{display:flex;align-items:center;gap:6px;margin-top:auto;padding-top:4px;flex-wrap:wrap}
+.tile-check{
+  position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:6px;
+  border:1.5px solid var(--line-strong);background:var(--panel);display:grid;place-items:center;
+  font-size:11px;color:#fff;opacity:0;transition:.15s;
+}
+.tile:hover .tile-check{opacity:1}
+.tile.sel .tile-check{opacity:1;background:var(--accent);border-color:var(--accent)}
+.empty{text-align:center;padding:70px 20px;color:var(--muted)}
+.empty h3{color:var(--text);margin:0 0 6px;font-size:16px}
+
+/* ---------- 导入 / 导出 ---------- */
+.pane{max-width:880px}
+.pane h2{font-size:15px;margin:0 0 4px}
+.pane .lead{color:var(--muted);font-size:12.5px;margin:0 0 16px}
+.block{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:16px}
+.drop{
+  border:1.5px dashed var(--line-strong);border-radius:12px;padding:26px;text-align:center;
+  color:var(--muted);font-size:12.5px;transition:.15s;cursor:pointer;background:var(--sidebar);
+}
+.drop:hover,.drop.over{border-color:var(--accent);color:var(--accent);background:var(--accent-2)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row.end{justify-content:flex-end}
+.switch{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-2);cursor:pointer}
+.switch input{accent-color:var(--accent);width:15px;height:15px}
+.preview-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}
+.preview-table th,.preview-table td{
+  border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top;
+}
+.preview-table th{color:var(--muted);font-weight:600;font-size:11px;letter-spacing:.4px}
+.preview-table td{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scope-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;max-height:180px;overflow:auto}
+.scope-tag{
+  border:1px solid var(--line-strong);background:var(--panel);border-radius:999px;
+  padding:4px 11px;font-size:12px;color:var(--text-2);
+}
+.scope-tag.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.radio-row{display:flex;gap:8px;flex-wrap:wrap}
+.radio-row label{
+  display:flex;align-items:center;gap:7px;border:1px solid var(--line-strong);border-radius:10px;
+  padding:9px 13px;font-size:13px;cursor:pointer;background:var(--panel);
+}
+.radio-row label.on{border-color:var(--accent);background:var(--accent-2);color:var(--accent);font-weight:600}
+.radio-row input{display:none}
+
+/* ---------- 统计 ---------- */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:14px 16px}
+.stat b{display:block;font-size:24px;font-variant-numeric:tabular-nums;line-height:1.3}
+.stat span{font-size:12px;color:var(--muted)}
+.chart{display:flex;align-items:flex-end;gap:6px;height:120px;padding-top:8px}
+.chart .bar{flex:1;background:var(--accent);border-radius:4px 4px 0 0;min-height:2px;position:relative;opacity:.85}
+.chart .bar:hover{opacity:1}
+.chart .bar span{position:absolute;bottom:-20px;left:0;right:0;text-align:center;font-size:10px;color:var(--muted)}
+.chart-wrap{padding-bottom:22px}
+
+/* ---------- 抽屉 ---------- */
+.drawer{
+  position:fixed;top:0;right:0;height:100%;width:min(620px,94vw);background:var(--panel);
+  border-left:1px solid var(--line);box-shadow:-10px 0 40px rgba(16,24,40,.12);
+  transform:translateX(102%);transition:transform .24s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;z-index:60;
+}
+body.drawer-open .drawer{transform:none}
+.drawer-head{
+  height:52px;flex:0 0 52px;display:flex;align-items:center;gap:8px;padding:0 12px;
+  border-bottom:1px solid var(--line);
+}
+.drawer-head .pos{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.icon-btn{
+  border:0;background:none;padding:6px 9px;border-radius:8px;color:var(--text-2);font-size:13px;
+}
+.icon-btn:hover{background:rgba(127,127,127,.12);color:var(--text)}
+.drawer-body{flex:1;overflow:auto;padding:20px 24px 40px}
+.drawer-title{font-size:17px;font-weight:650;line-height:1.55;margin:0 0 10px}
+.drawer-meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.drawer-sec{margin-top:18px}
+.drawer-sec>.label{
+  font-size:11px;font-weight:700;letter-spacing:.9px;color:var(--muted);
+  text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:8px;
+}
+.drawer-sec>.label:after{content:"";flex:1;height:1px;background:var(--line)}
+.note-frame{
+  width:100%;height:min(58vh,520px);border:1px solid var(--line);border-radius:11px;background:#fff;
+}
+.note-link{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);
+  border-radius:10px;background:var(--sidebar);margin-bottom:10px;font-size:12px;color:var(--text-2);
+  word-break:break-all;
+}
+.sched-box{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;font-size:12.5px}
+.sched-box div{display:flex;justify-content:space-between;padding:6px 10px;background:var(--sidebar);border-radius:8px}
+.sched-box span{color:var(--muted)}
+.hist{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-2)}
+.hist i{color:var(--muted);font-style:normal;font-variant-numeric:tabular-nums}
+.backdrop{
+  position:fixed;inset:0;background:rgba(16,24,40,.28);opacity:0;pointer-events:none;
+  transition:opacity .2s;z-index:50;
+}
+body.drawer-open .backdrop{opacity:1;pointer-events:auto}
+
+/* ---------- 弹窗 ---------- */
+.modal{position:fixed;inset:0;background:rgba(16,24,40,.4);display:flex;align-items:center;justify-content:center;z-index:80;padding:24px}
+.modal[hidden]{display:none}
+.modal-panel{
+  background:var(--panel);border-radius:16px;width:min(720px,100%);max-height:88vh;overflow:auto;
+  box-shadow:0 24px 60px rgba(16,24,40,.28);padding:22px;
+}
+.modal-panel h3{margin:0 0 16px;font-size:16px}
+.form-row{margin-bottom:14px}
+.form-row>label{display:block;font-size:12px;color:var(--muted);font-weight:600;margin-bottom:5px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.toast{
+  position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);opacity:0;
+  background:#1b1f24;color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;
+  pointer-events:none;transition:.22s;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.25);
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* Markdown 内容 */
+.md p{margin:.55em 0}
+.md h2,.md h3,.md h4,.md h5{margin:1em 0 .4em;line-height:1.4}
+.md h2{font-size:1.22em}.md h3{font-size:1.1em}.md h4{font-size:1em}
+.md ul,.md ol{margin:.5em 0;padding-left:1.3em}
+.md li{margin:.2em 0}
+.md code{
+  background:rgba(127,127,127,.14);padding:1px 5px;border-radius:5px;font-size:.9em;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+.md pre.code{
+  background:var(--sidebar);border:1px solid var(--line);border-radius:10px;padding:12px 14px;
+  overflow:auto;margin:.7em 0;
+}
+.md pre.code code{background:none;padding:0;font-size:12.5px;line-height:1.65}
+.md blockquote{
+  margin:.6em 0;padding:6px 14px;border-left:3px solid var(--accent);background:var(--accent-2);
+  border-radius:0 8px 8px 0;color:var(--text-2);
+}
+.md blockquote p{margin:.2em 0}
+.md hr{border:0;border-top:1px solid var(--line);margin:1em 0}
+.md img{max-width:100%;border-radius:8px;margin:.4em 0}
+.md a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(53,104,240,.3)}
+.md a:hover{border-bottom-color:var(--accent)}
+.md .tag-inline{background:var(--accent-2);color:var(--accent);border-radius:6px;padding:0 5px;font-size:.88em;font-weight:600}
+.md del{color:var(--muted)}
+.clamp-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+@media (max-width:820px){
+  .app{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .content{padding:14px}
+  .review-card{padding:22px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">A</div>
+      <div>
+        <div class="brand-title">Anki Lite</div>
+        <div class="brand-sub">本地卡片 · 艾宾浩斯</div>
+      </div>
+    </div>
+    <nav class="nav" id="nav">
+      <button data-act="view" data-view="review"><span class="grow">复习</span><span class="count" id="navDue">0</span></button>
+      <button data-act="view" data-view="library"><span class="grow">卡片库</span><span class="count" id="navTotal">0</span></button>
+      <button data-act="view" data-view="import"><span class="grow">导入</span></button>
+      <button data-act="view" data-view="export"><span class="grow">导出</span></button>
+      <button data-act="view" data-view="stats"><span class="grow">统计</span></button>
+    </nav>
+    <div class="tag-section">
+      <div class="section-title"><span>标签</span><button class="mini" data-act="clear-tag">清除</button></div>
+      <div class="tag-list" id="tagList"></div>
+    </div>
+    <div class="sidebar-foot">数据只保存在本机浏览器<br>建议定期导出 JSON 备份</div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 id="viewTitle">复习</h1>
+        <div class="sub" id="viewSub"></div>
+      </div>
+      <div class="spacer"></div>
+      <div class="row" id="topActions"></div>
+    </header>
+    <div class="content" id="content"></div>
+  </main>
+</div>
+
+<div class="backdrop" data-act="close-drawer"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <button class="icon-btn" data-act="drawer-prev" title="上一张">‹</button>
+    <span class="pos" id="drawerPos"></span>
+    <button class="icon-btn" data-act="drawer-next" title="下一张">›</button>
+    <div class="spacer" style="flex:1"></div>
+    <button class="icon-btn" data-act="drawer-edit">编辑</button>
+    <button class="icon-btn" data-act="close-drawer" title="关闭">✕</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</aside>
+
+<div class="modal" id="modal" hidden><div class="modal-panel" id="modalPanel"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= 常量 ================= */
+var DB_KEY = 'anki-lite-v1';
+var DAY = 86400000;
+
+// 艾宾浩斯复习阶梯：5min → 30min → 12h → 1d → 2d → 4d → 7d → 15d → 30d → 60d → 120d
+var STEPS = [
+  {label:'5 分钟',  short:'5 分钟', ms:5*60*1000},
+  {label:'30 分钟', short:'30 分钟', ms:30*60*1000},
+  {label:'12 小时', short:'12 小时', ms:12*3600*1000},
+  {label:'1 天',    short:'1 天',   ms:1*DAY},
+  {label:'2 天',    short:'2 天',   ms:2*DAY},
+  {label:'4 天',    short:'4 天',   ms:4*DAY},
+  {label:'7 天',    short:'7 天',   ms:7*DAY},
+  {label:'15 天',   short:'15 天',  ms:15*DAY},
+  {label:'30 天',   short:'30 天',  ms:30*DAY},
+  {label:'60 天',   short:'60 天',  ms:60*DAY},
+  {label:'120 天',  short:'120 天', ms:120*DAY}
+];
+var GRADES = [
+  {key:'again', label:'忘记', tip:'重置到 5 分钟'},
+  {key:'hard',  label:'模糊', tip:'原地再练一阶'},
+  {key:'good',  label:'记得', tip:'进入下一阶'},
+  {key:'easy',  label:'熟练', tip:'跳过一阶'}
+];
+
+/* ================= 工具 ================= */
+function $(s,r){ return (r||document).querySelector(s); }
+function $$(s,r){ return Array.prototype.slice.call((r||document).querySelectorAll(s)); }
+function uid(){ return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function esc(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function pad2(n){ return n<10 ? '0'+n : ''+n; }
+function fmtDT(ts){
+  if(!ts) return '—';
+  var d = new Date(ts);
+  return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+' '+pad2(d.getHours())+':'+pad2(d.getMinutes());
+}
+function fmtDate(ts){
+  if(!ts) return '—';
+  var d = new Date(ts);
+  return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
+}
+function dayStart(ts){
+  var d = new Date(ts); d.setHours(0,0,0,0); return d.getTime();
+}
+function uniq(arr){
+  var seen = {}, out = [];
+  arr.forEach(function(x){ if(x && !seen[x]){ seen[x] = 1; out.push(x); } });
+  return out;
+}
+function toast(msg){
+  var el = $('#toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function(){ el.classList.remove('show'); }, 2200);
+}
+function download(name, text, mime){
+  var blob = new Blob([text], {type: (mime||'text/plain') + ';charset=utf-8'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+
+/* ================= 标签抽取 ================= */
+var TAG_RE = /(^|[\s,，、;；:：()（）\[\]【】<>「」"'“”‘’\/])(#[^\s#]+)/g;
+function extractTags(text){
+  var out = [], m;
+  if(!text) return out;
+  TAG_RE.lastIndex = 0;
+  while((m = TAG_RE.exec(String(text))) !== null){
+    var t = m[2].slice(1).replace(/[.,;:!?。，；：！？)）\]】]+$/, '');
+    if(t) out.push(t);
+  }
+  return uniq(out);
+}
+
+/* ================= 存储 ================= */
+var storageOk = true;
+var state = { v:1, cards:[], updatedAt: Date.now() };
+
+function load(){
+  try{
+    var raw = localStorage.getItem(DB_KEY);
+    if(!raw) return;
+    var data = JSON.parse(raw);
+    if(data && Array.isArray(data.cards)){
+      state.cards = data.cards.map(hydrate);
+      state.updatedAt = data.updatedAt || Date.now();
+    }
+  }catch(e){
+    console.warn('读取本地数据失败', e);
+  }
+}
+function save(){
+  state.updatedAt = Date.now();
+  try{
+    localStorage.setItem(DB_KEY, JSON.stringify({v:1, updatedAt: state.updatedAt, cards: state.cards}));
+  }catch(e){
+    if(storageOk){ storageOk = false; toast('本地存储写入失败（可能超出配额），请及时导出备份'); }
+  }
+}
+function hydrate(raw){
+  if(!raw || typeof raw !== 'object') return makeCard({});
+  var s = raw.sched && typeof raw.sched === 'object' ? raw.sched : {};
+  var manual = Array.isArray(raw.manualTags) ? raw.manualTags : [];
+  return {
+    id: raw.id || uid(),
+    front: String(raw.front || ''),
+    back: String(raw.back || ''),
+    note: String(raw.note || ''),
+    noteUrl: String(raw.noteUrl || ''),
+    tags: Array.isArray(raw.tags) ? raw.tags.map(String).filter(Boolean) : [],
+    manualTags: manual.map(String).filter(Boolean),
+    created: raw.created || Date.now(),
+    updated: raw.updated || raw.created || Date.now(),
+    suspended: !!raw.suspended,
+    sched: {
+      stage: Math.max(0, Math.min(STEPS.length-1, s.stage|0)),
+      due: s.due || raw.created || Date.now(),
+      last: s.last || null,
+      reps: s.reps|0,
+      lapses: s.lapses|0,
+      history: Array.isArray(s.history) ? s.history.slice(-60) : []
+    }
+  };
+}
+function makeCard(o){
+  o = o || {};
+  var card = hydrate({
+    id: o.id,
+    front: o.front,
+    back: o.back,
+    note: o.note,
+    noteUrl: o.noteUrl,
+    manualTags: o.manualTags || o.tags || [],
+    created: o.created,
+    updated: o.updated,
+    suspended: o.suspended,
+    sched: o.sched
+  });
+  card.tags = computeTags(card);
+  return card;
+}
+function computeTags(card){
+  var auto = extractTags([card.front, card.back, card.note].join('\n'));
+  var manual = (card.manualTags || []).map(function(t){ return String(t).replace(/^#/, '').trim(); }).filter(Boolean);
+  return uniq(auto.concat(manual));
+}
+function findCard(id){
+  for(var i=0;i<state.cards.length;i++) if(state.cards[i].id === id) return state.cards[i];
+  return null;
+}
+
+/* ================= 调度 ================= */
+function scheduleOf(card, grade){
+  var s = card.sched || {stage:0, lapses:0};
+  var stage = Math.max(0, Math.min(STEPS.length-1, s.stage|0));
+  var lapses = s.lapses|0;
+  if(grade === 'again'){ stage = 0; lapses++; }
+  else if(grade === 'hard'){ /* 原地停留 */ }
+  else if(grade === 'good'){ stage = Math.min(STEPS.length-1, stage+1); }
+  else if(grade === 'easy'){ stage = Math.min(STEPS.length-1, stage+2); }
+  var step = STEPS[stage];
+  return {stage:stage, lapses:lapses, step:step, due: Date.now() + step.ms};
+}
+function applyGrade(card, grade){
+  var r = scheduleOf(card, grade);
+  var now = Date.now();
+  card.sched.stage = r.stage;
+  card.sched.due = r.due;
+  card.sched.last = now;
+  card.sched.reps = (card.sched.reps|0) + 1;
+  card.sched.lapses = r.lapses;
+  card.sched.history.push({t: now, g: grade, due: r.due});
+  if(card.sched.history.length > 60) card.sched.history = card.sched.history.slice(-60);
+  return r;
+}
+function isDue(card, now){
+  return !card.suspended && (card.sched.due || 0) <= (now||Date.now());
+}
+function matchTags(card){
+  if(!ui.tags.length) return true;
+  return ui.tags.some(function(t){ return (card.tags||[]).indexOf(t) >= 0; });
+}
+function dueCards(now){
+  now = now || Date.now();
+  var arr = state.cards.filter(function(c){ return isDue(c, now); });
+  arr = arr.filter(matchTags);
+  arr.sort(function(a,b){ return (a.sched.due||0) - (b.sched.due||0); });
+  return arr;
+}
+function dueLabel(card){
+  var now = Date.now();
+  var d = card.sched.due || 0;
+  if(card.suspended) return {text:'已暂停', cls:'gray'};
+  if(!card.sched.reps) return {text:'新卡片', cls:'gray'};
+  if(d <= now) return {text:'待复习', cls:'red'};
+  if(d - now < 6*3600*1000) return {text:'即将到期', cls:''};
+  if(dayStart(d) === dayStart(now)) return {text:'今天', cls:''};
+  if(dayStart(d) === dayStart(now) + DAY) return {text:'明天', cls:''};
+  return {text: fmtDate(d).slice(5), cls:''};
+}
+
+/* ================= Markdown ================= */
+var SAFE_URL = /^(https?:\/\/|mailto:|\/|\.\/|\.\.\/|#)/i;
+function mdInline(str){
+  var s = esc(str);
+  var codes = [];
+  s = s.replace(/`([^`]+)`/g, function(m, c){
+    codes.push('<code>' + c + '</code>');
+    return '\u0000C' + (codes.length-1) + '\u0000';
+  });
+  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, function(m, alt, url){
+    return SAFE_URL.test(url) ? '<img src="' + url + '" alt="' + alt + '">' : m;
+  });
+  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, function(m, txt, url){
+    return SAFE_URL.test(url) ? '<a href="' + url + '" target="_blank" rel="noopener">' + txt + '</a>' : m;
+  });
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/(^|[^*\w])\*([^*\n]+)\*/g, '$1<em>$2</em>');
+  s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+  s = s.replace(/(^|[\s,，、;；:：()（）\[\]【】<>「」"'“”‘’\/])(#[^\s#<]+)/g, function(m, pre, tag){
+    var clean = tag.replace(/[.,;:!?。，；：！？)）\]】]+$/, '');
+    var tail = tag.slice(clean.length);
+    return pre + '<span class="tag-inline">' + clean + '</span>' + tail;
+  });
+  s = s.replace(/\u0000C(\d+)\u0000/g, function(m, i){ return codes[+i]; });
+  return s;
+}
+function md(src){
+  if(src == null) return '';
+  var text = String(src).replace(/\r\n?/g, '\n');
+  var blocks = [];
+  text = text.replace(/```([\w+-]*)\n([\s\S]*?)```/g, function(m, lang, code){
+    blocks.push('<pre class="code"><code>' + esc(code.replace(/\n$/, '')) + '</code></pre>');
+    return '\u0000B' + (blocks.length-1) + '\u0000';
+  });
+
+  var lines = text.split('\n');
+  var html = '';
+  var para = [];
+  var list = null;
+
+  function flushPara(){
+    if(para.length){ html += '<p>' + mdInline(para.join(' ')) + '</p>'; para = []; }
+  }
+  function flushList(){
+    if(list){
+      html += '<' + list.type + '>' + list.items.map(function(t){ return '<li>' + mdInline(t) + '</li>'; }).join('') + '</' + list.type + '>';
+      list = null;
+    }
+  }
+
+  for(var i=0;i<lines.length;i++){
+    var line = lines[i].replace(/\s+$/, '');
+    if(!line.trim()){ flushPara(); flushList(); continue; }
+
+    var mb = line.match(/^\u0000B(\d+)\u0000$/);
+    if(mb){ flushPara(); flushList(); html += blocks[+mb[1]]; continue; }
+
+    var m;
+    if((m = line.match(/^(#{1,6})\s+(.*)$/))){
+      flushPara(); flushList();
+      var lv = Math.min(m[1].length + 1, 6);
+      html += '<h' + lv + '>' + mdInline(m[2]) + '</h' + lv + '>';
+      continue;
+    }
+    if(/^\s*([-*_])\1{2,}\s*$/.test(line)){ flushPara(); flushList(); html += '<hr>'; continue; }
+    if((m = line.match(/^>\s?(.*)$/))){
+      flushPara(); flushList();
+      html += '<blockquote><p>' + mdInline(m[1]) + '</p></blockquote>';
+      continue;
+    }
+    if((m = line.match(/^\s*[-*+]\s+(.*)$/))){
+      flushPara();
+      if(!list || list.type !== 'ul'){ flushList(); list = {type:'ul', items:[]}; }
+      list.items.push(m[1]);
+      continue;
+    }
+    if((m = line.match(/^\s*\d+[.)]\s+(.*)$/))){
+      flushPara();
+      if(!list || list.type !== 'ol'){ flushList(); list = {type:'ol', items:[]}; }
+      list.items.push(m[1]);
+      continue;
+    }
+    flushList();
+    para.push(line.trim());
+  }
+  flushPara(); flushList();
+  return html || '<p class="hint">（空）</p>';
+}
+function plain(src, max){
+  var t = String(src || '').replace(/```[\s\S]*?```/g, ' ');
+  t = t.split('\n').map(function(line){
+    return line.replace(/^\s*([>#*+-]+|\d+[.)])\s?/, '').replace(/[*`~]/g, '').trim();
+  }).filter(Boolean).join(' ');
+  t = t.replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/\s+/g, ' ').trim();
+  if(max && t.length > max) t = t.slice(0, max) + '…';
+  return t;
+}
+
+/* ================= UI 状态 ================= */
+var ui = {
+  view: 'review',
+  tags: [],
+  group: 'all',
+  q: '',
+  sort: 'created-desc',
+  selecting: false,
+  selected: {},
+  queue: [],
+  qi: 0,
+  order: [],
+  drawerId: null,
+  revealed: false,
+  session: {done:0, again:0, start:0},
+  importText: '',
+  importPreview: null,
+  importFileName: '',
+  exportScope: 'all',
+  exportTags: {},
+  exportFormat: 'md',
+  exportNotes: true,
+  exportSched: true
+};
+
+/* ================= 渲染：侧栏 / 顶栏 ================= */
+function tagCounts(){
+  var map = {};
+  state.cards.forEach(function(c){
+    (c.tags||[]).forEach(function(t){ map[t] = (map[t]||0) + 1; });
+  });
+  return map;
+}
+function renderSidebar(){
+  var now = Date.now();
+  $('#navDue').textContent = dueCards(now).length;
+  $('#navTotal').textContent = state.cards.length;
+
+  $$('#nav button').forEach(function(b){
+    b.classList.toggle('on', b.getAttribute('data-view') === ui.view);
+  });
+
+  var map = tagCounts();
+  var tags = Object.keys(map).sort(function(a,b){ return map[b]-map[a] || a.localeCompare(b); });
+  var host = $('#tagList');
+  if(!tags.length){
+    host.innerHTML = '<div class="tag-empty">还没有标签。<br>在卡片内容里写 <b>#标签</b> 就会自动归类。</div>';
+    return;
+  }
+  host.innerHTML = '<button class="tag-item' + (ui.tags.length ? '' : ' on') + '" data-act="tag" data-tag="">' +
+    '<span class="tag-name">全部标签</span><span class="count">' + state.cards.length + '</span></button>' +
+    tags.map(function(t){
+      return '<button class="tag-item' + (ui.tags.indexOf(t) >= 0 ? ' on' : '') + '" data-act="tag" data-tag="' + esc(t) + '">' +
+        '<span class="tag-name">#' + esc(t) + '</span><span class="count">' + map[t] + '</span></button>';
+    }).join('');
+}
+function renderTop(){
+  var titles = {review:'复习', library:'卡片库', import:'导入卡片', export:'导出存档', stats:'统计'};
+  $('#viewTitle').textContent = titles[ui.view] || '';
+  var sub = '';
+  var tagTxt = ui.tags.length ? ' · 筛选 ' + ui.tags.map(function(t){ return '#' + t; }).join(' ') : '';
+  if(ui.view === 'review'){
+    var d = dueCards().length;
+    sub = d ? ('今日待复习 ' + d + ' 张' + tagTxt) : ('今天没有待复习的卡片' + tagTxt);
+  }else if(ui.view === 'library'){
+    sub = '共 ' + state.cards.length + ' 张' + tagTxt;
+  }else if(ui.view === 'import'){
+    sub = '支持 CSV / TSV / Markdown / JSON / Anki .apkg';
+  }else if(ui.view === 'export'){
+    sub = '导出后可长期归档，也可重新导入';
+  }else if(ui.view === 'stats'){
+    sub = '记忆进度与复习历史';
+  }
+  $('#viewSub').textContent = sub;
+
+  var actions = '';
+  if(ui.view === 'library'){
+    actions = '<button class="btn" data-act="select-mode">' + (ui.selecting ? '退出多选' : '多选') + '</button>' +
+              '<button class="btn primary" data-act="new-card">新建卡片</button>';
+  }else if(ui.view === 'review'){
+    actions = '<button class="btn" data-act="rebuild-queue">重新排队</button>';
+  }else if(ui.view === 'import'){
+    actions = '<button class="btn" data-act="view" data-view="library">去卡片库</button>';
+  }else if(ui.view === 'export'){
+    actions = '<button class="btn" data-act="view" data-view="import">去导入</button>';
+  }
+  $('#topActions').innerHTML = actions;
+}
+
+/* ================= 视图：复习 ================= */
+function renderReview(){
+  var now = Date.now();
+  if(!ui.session.start) ui.session = {done:0, again:0, start:now};
+  if(ui.qi >= ui.queue.length){
+    $('#content').innerHTML = doneScreen();
+    return;
+  }
+  var card = findCard(ui.queue[ui.qi]);
+  if(!card){ ui.qi++; render(); return; }
+
+  var total = ui.queue.length;
+  var pct = total ? Math.round(ui.qi / total * 100) : 0;
+  var tags = (card.tags||[]).map(function(t){ return '<span class="chip">#' + esc(t) + '</span>'; }).join('');
+
+  var gradeBtns = GRADES.map(function(g){
+    var prev = scheduleOf(card, g.key);
+    return '<button class="grade" data-act="grade" data-grade="' + g.key + '">' +
+      '<span>' + g.label + '</span><small>' + prev.step.short + '</small></button>';
+  }).join('');
+
+  $('#content').innerHTML =
+    '<div class="review-wrap">' +
+      '<div class="progress"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="review-meta">' +
+        '<span>第 ' + (ui.qi+1) + ' / ' + total + ' 张</span>' +
+        '<span>·</span><span>剩余 ' + (total - ui.qi - 1) + ' 张</span>' +
+        '<div class="right">' + tags +
+          '<button class="btn ghost" data-act="open" data-id="' + card.id + '">详情</button>' +
+          '<button class="btn ghost" data-act="edit" data-id="' + card.id + '">编辑</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="review-card">' +
+        '<div class="face front"><div class="label">正面</div><div class="md">' + md(card.front) + '</div></div>' +
+        '<div class="face back' + (ui.revealed ? '' : ' hidden') + '">' +
+          '<div class="label">背面</div><div class="md">' + md(card.back || '（这张卡片没有背面内容）') + '</div>' +
+        '</div>' +
+        (ui.revealed ? '' : '<div class="reveal-hint">点击卡片或按 <span class="kbd">空格</span> 显示答案</div>') +
+      '</div>' +
+      (ui.revealed
+        ? '<div class="grade-row">' + gradeBtns + '</div>' +
+          '<div class="hint" style="text-align:center">键盘 <span class="kbd">1</span> 忘记 · <span class="kbd">2</span> 模糊 · <span class="kbd">3</span> 记得 · <span class="kbd">4</span> 熟练</div>'
+        : '<button class="btn primary" data-act="reveal" style="align-self:center;padding:10px 26px">显示答案</button>') +
+    '</div>';
+}
+function doneScreen(){
+  var now = Date.now();
+  var sess = ui.session;
+  var mins = sess.start ? Math.max(1, Math.round((now - sess.start)/60000)) : 0;
+  var nextDue = null;
+  state.cards.forEach(function(c){
+    if(c.suspended || !c.sched.due) return;
+    if(c.sched.due <= now) return;
+    if(nextDue === null || c.sched.due < nextDue) nextDue = c.sched.due;
+  });
+  var remain = dueCards().length;
+  return '<div class="panel done">' +
+    '<div class="emoji">' + (sess.done ? '🌿' : '☕️') + '</div>' +
+    '<h2>' + (sess.done ? '本轮复习完成' : '今天没有待复习的卡片') + '</h2>' +
+    '<p class="hint">' + (sess.done
+        ? '按艾宾浩斯曲线，它们会在合适的时间再回来找你。'
+        : '去卡片库读读卡片，或者导入一批新卡片。') + '</p>' +
+    '<div class="nums">' +
+      '<div class="num"><b>' + sess.done + '</b><span>本轮复习</span></div>' +
+      '<div class="num"><b>' + sess.again + '</b><span>忘记次数</span></div>' +
+      '<div class="num"><b>' + mins + '</b><span>用时（分钟）</span></div>' +
+    '</div>' +
+    '<div class="hint" style="margin-bottom:18px">' +
+      (remain ? '当前仍有 ' + remain + ' 张待复习（含刚刚判为忘记的卡片）' : '待复习清单已清空') +
+      (nextDue ? '<br>下一张卡片将在 ' + fmtDT(nextDue) + ' 到期' : '') +
+    '</div>' +
+    '<div class="row" style="justify-content:center">' +
+      (remain ? '<button class="btn primary" data-act="rebuild-queue">继续复习 ' + remain + ' 张</button>' : '') +
+      '<button class="btn" data-act="view" data-view="library">去卡片库</button>' +
+      '<button class="btn" data-act="view" data-view="stats">看统计</button>' +
+    '</div>' +
+  '</div>';
+}
+
+/* ================= 视图：卡片库 ================= */
+function filteredCards(){
+  var q = ui.q.trim().toLowerCase();
+  var arr = state.cards.slice();
+  arr = arr.filter(matchTags);
+  if(q){
+    arr = arr.filter(function(c){
+      return (c.front + ' ' + c.back + ' ' + c.note + ' ' + c.tags.join(' ')).toLowerCase().indexOf(q) >= 0;
+    });
+  }
+  var s = ui.sort;
+  arr.sort(function(a,b){
+    if(s === 'created-asc') return a.created - b.created;
+    if(s === 'due') return (a.sched.due||0) - (b.sched.due||0);
+    if(s === 'reps') return (b.sched.reps|0) - (a.sched.reps|0);
+    return b.created - a.created;
+  });
+  return arr;
+}
+function renderLibrary(){
+  $('#content').innerHTML =
+    '<div class="toolbar">' +
+      '<div class="search"><input class="field" id="searchInput" placeholder="搜索卡片内容或标签…" value="' + esc(ui.q) + '"></div>' +
+      '<select class="field" id="sortSelect">' +
+        '<option value="created-desc">最新创建</option>' +
+        '<option value="created-asc">最早创建</option>' +
+        '<option value="due">最快到期</option>' +
+        '<option value="reps">复习最多</option>' +
+      '</select>' +
+      '<div class="seg">' +
+        '<button data-act="group" data-group="all" class="' + (ui.group === 'all' ? 'on' : '') + '">平铺</button>' +
+        '<button data-act="group" data-group="tag" class="' + (ui.group === 'tag' ? 'on' : '') + '">按标签分组</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="tagbar" id="tagBar"></div>' +
+    '<div id="selBar"></div>' +
+    '<div id="cardGrid"></div>';
+  $('#sortSelect').value = ui.sort;
+  $('#searchInput').addEventListener('input', function(){ ui.q = this.value; fillGrid(); });
+  $('#sortSelect').addEventListener('change', function(){ ui.sort = this.value; fillGrid(); });
+  fillGrid();
+}
+function renderTagBar(){
+  var host = $('#tagBar');
+  if(!host) return;
+  var map = tagCounts();
+  var tags = Object.keys(map).sort(function(a,b){ return map[b]-map[a] || a.localeCompare(b); });
+  if(!tags.length){ host.innerHTML = ''; return; }
+  host.innerHTML = '<span class="tagbar-label">标签筛选</span>' +
+    '<button class="scope-tag' + (ui.tags.length ? '' : ' on') + '" data-act="lib-tag" data-tag="">全部 ' + state.cards.length + '</button>' +
+    tags.map(function(t){
+      return '<button class="scope-tag' + (ui.tags.indexOf(t) >= 0 ? ' on' : '') + '" data-act="lib-tag" data-tag="' + esc(t) + '">#' + esc(t) + ' · ' + map[t] + '</button>';
+    }).join('') +
+    (ui.tags.length ? '<button class="btn ghost" data-act="clear-tag">清除筛选</button>' : '');
+}
+function tileHtml(c){
+  var tagHtml = (c.tags||[]).slice(0,3).map(function(t){ return '<span class="chip">#' + esc(t) + '</span>'; }).join('');
+  if((c.tags||[]).length > 3) tagHtml += '<span class="chip gray">+' + (c.tags.length-3) + '</span>';
+  var dl = dueLabel(c);
+  return '<article class="tile' + (ui.selected[c.id] ? ' sel' : '') + (c.suspended ? ' suspended' : '') + '" data-act="open" data-id="' + c.id + '">' +
+    '<div class="tile-check" data-act="toggle-select" data-id="' + c.id + '">✓</div>' +
+    '<div class="tile-front">' + esc(plain(c.front, 90)) + '</div>' +
+    '<div class="tile-back">' + esc(plain(c.back, 80)) + '</div>' +
+    '<div class="tile-foot">' + tagHtml +
+      '<div style="flex:1"></div>' +
+      '<span class="chip ' + (dl.cls||'gray') + '">' + dl.text + '</span>' +
+    '</div>' +
+  '</article>';
+}
+function fillGrid(){
+  var arr = filteredCards();
+  ui.order = arr.map(function(c){ return c.id; });
+  var host = $('#cardGrid');
+  if(!host) return;
+  renderTagBar();
+
+  var selCount = Object.keys(ui.selected).length;
+  var bar = $('#selBar');
+  if(bar){
+    bar.innerHTML = selCount
+      ? '<div class="selbar">已选 ' + selCount + ' 张' +
+          '<div style="flex:1"></div>' +
+          '<button class="btn ghost" data-act="select-all">全选当前 ' + arr.length + ' 张</button>' +
+          '<button class="btn ghost" data-act="select-none">清空</button>' +
+          '<button class="btn primary" data-act="export-selected">导出选中</button>' +
+        '</div>'
+      : (ui.selecting ? '<div class="selbar">多选模式：点击卡片右上角勾选框，或 <button class="btn ghost" data-act="select-all">全选</button></div>' : '');
+  }
+
+  if(!arr.length){
+    host.innerHTML = '<div class="empty" style="grid-column:1/-1">' +
+      '<h3>' + (state.cards.length ? '没有匹配的卡片' : '还没有卡片') + '</h3>' +
+      '<p>' + (state.cards.length ? '换个关键词或清除标签筛选试试。' : '导入一批卡片，或先看看示例。') + '</p>' +
+      (state.cards.length ? '' : '<div class="row" style="justify-content:center;margin-top:14px">' +
+        '<button class="btn primary" data-act="view" data-view="import">去导入</button>' +
+        '<button class="btn" data-act="seed">载入示例卡片</button></div>') +
+    '</div>';
+    return;
+  }
+
+  if(ui.group === 'tag'){
+    var counts = tagCounts();
+    var groups = ui.tags.length
+      ? ui.tags.slice()
+      : Object.keys(counts).sort(function(a,b){ return counts[b]-counts[a] || a.localeCompare(b); });
+    var html = groups.map(function(t){
+      var items = arr.filter(function(c){ return (c.tags||[]).indexOf(t) >= 0; });
+      if(!items.length) return '';
+      return '<section class="group">' +
+        '<h3 class="group-head"><span class="chip">#' + esc(t) + '</span><span class="count">' + items.length + ' 张</span></h3>' +
+        '<div class="grid">' + items.map(tileHtml).join('') + '</div></section>';
+    }).join('');
+    var loose = arr.filter(function(c){ return !(c.tags||[]).length; });
+    if(loose.length){
+      html += '<section class="group">' +
+        '<h3 class="group-head"><span class="chip gray">未打标签</span><span class="count">' + loose.length + ' 张</span></h3>' +
+        '<div class="grid">' + loose.map(tileHtml).join('') + '</div></section>';
+    }
+    host.innerHTML = html || '<div class="empty"><h3>没有匹配的卡片</h3></div>';
+  }else{
+    host.innerHTML = '<div class="grid">' + arr.map(tileHtml).join('') + '</div>';
+  }
+}
+
+/* ================= 视图：导入 ================= */
+function renderImport(){
+  $('#content').innerHTML =
+  '<div class="pane">' +
+    '<div class="block">' +
+      '<h2>批量导入</h2>' +
+      '<p class="lead">一行一张卡片：<b>正面 → 背面 → 标签</b>。支持 Tab、竖线 |、逗号分隔；内容里写 <b>#标签</b> 会自动归类。也可以直接拖入 .csv / .tsv / .txt / .md / .json 文件，或者 Anki 导出的 <b>.apkg / .colpkg</b>。</p>' +
+      '<div class="drop" id="drop">' +
+        '把文件拖到这里，或 <b>点击选择文件</b><br>' +
+        '<span style="font-size:11.5px">.csv · .tsv · .txt · .md · .json（本应用导出的备份）· .apkg / .colpkg（Anki 包）</span>' +
+      '</div>' +
+      '<input type="file" id="fileInput" accept=".csv,.tsv,.txt,.md,.json,.apkg,.colpkg" style="display:none">' +
+      '<div style="margin-top:14px">' +
+        '<textarea class="field" id="importText" rows="10" placeholder="也可以直接粘贴，例如：&#10;什么是艾宾浩斯遗忘曲线？&#9;德国心理学家艾宾浩斯用无意义音节自测得出的遗忘速率曲线。&#9;#记忆 #学习&#10;HTTP 与 HTTPS 的区别&#9;HTTPS 在 HTTP 之下加了 TLS 加密层。#网络&#10;闭包是什么 | JS 中函数与其词法作用域的组合 | #JS #基础">' + esc(ui.importText) + '</textarea>' +
+      '</div>' +
+      '<div class="row" style="margin-top:12px">' +
+        '<button class="btn primary" data-act="parse-import">解析预览</button>' +
+        '<label class="switch"><input type="checkbox" id="dedupe" checked>跳过重复卡片</label>' +
+        '<label class="switch"><input type="checkbox" id="replaceAll">清空现有卡片后再导入</label>' +
+        '<div style="flex:1"></div>' +
+        '<button class="btn ghost" id="fillSample">填入示例</button>' +
+      '</div>' +
+    '</div>' +
+    '<div id="importResult"></div>' +
+    '<div class="block">' +
+      '<h2>格式说明</h2>' +
+      '<p class="lead">选择你顺手的一种即可，混用也没问题。</p>' +
+      '<div class="md hint">' +
+        '<p><b>1. 表格 / TSV（推荐，可直接从 Excel 复制）</b></p>' +
+        '<pre class="code"><code>正面&nbsp;&nbsp;→ Tab →&nbsp;&nbsp;背面&nbsp;&nbsp;→ Tab →&nbsp;&nbsp;#标签1 #标签2</code></pre>' +
+        '<p><b>2. 竖线分隔</b></p>' +
+        '<pre class="code"><code>问题 | 答案 | #标签</code></pre>' +
+        '<p><b>3. CSV</b>（带引号的单元格可以跨行，Excel 导出的可以直接用）</p>' +
+        '<p><b>4. JSON 备份</b>：本应用「导出 → JSON」的文件，会原样恢复卡片与复习进度。</p>' +
+        '<p><b>5. Anki 包（.apkg / .colpkg）</b>：拖进来即可，浏览器本地解包并直读 SQLite，不经过任何服务器。导入规则：字段 1 → 正面，字段 2 → 背面，其余字段 → 笔记；Anki 标签和所属牌组都变成标签；Cloze 卡片把 <code>{{c1::…}}</code> 展开成带空白的问句与加粗答案；HTML 会转成 Markdown。复习进度不迁移，统一按新卡处理。若提示 zstd 压缩，请在 Anki 里选「导出 → 支持旧版 Anki 的 .apkg」。</p>' +
+        '<p><b>标签规则</b>：正文里任何 <code>#标签</code> 都会被识别成标签；标签列可以写 <code>#记忆 学习</code>，带不带 # 都行。</p>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+
+  var drop = $('#drop'), fileInput = $('#fileInput'), ta = $('#importText');
+  drop.addEventListener('click', function(){ fileInput.click(); });
+  fileInput.addEventListener('change', function(){
+    if(fileInput.files && fileInput.files[0]) readFile(fileInput.files[0]);
+  });
+  ['dragenter','dragover'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add('over'); });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove('over'); });
+  });
+  drop.addEventListener('drop', function(e){
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if(f) readFile(f);
+  });
+  ta.addEventListener('input', function(){ ui.importText = ta.value; });
+  $('#fillSample').addEventListener('click', function(){
+    ta.value = '什么是艾宾浩斯遗忘曲线？\t德国心理学家艾宾浩斯用无意义音节自测得到的遗忘速率曲线：20 分钟忘掉 42%，1 天忘掉 66%，之后趋于平缓。\t#记忆 #学习\n' +
+      'SM-2 算法的核心变量有哪些？\t易度因子 EF、复习间隔 interval、重复次数 n。EF 反映这张卡对你有多难。\t#记忆 #算法\n' +
+      '闭包是什么 | JS 中函数与其词法作用域的组合，内部函数可以持续访问外部作用域的变量 | #JS #基础\n' +
+      'HTTP 与 HTTPS 的区别 | HTTPS 在 HTTP 之下加了 TLS，提供加密、完整性校验与身份认证 | #网络';
+    ui.importText = ta.value;
+  });
+  if(ui.importPreview) renderImportPreview();
+}
+function readFile(file){
+  if(/\.(apkg|colpkg)$/i.test(file.name || '')) return readAnkiPackage(file);
+  var reader = new FileReader();
+  reader.onload = function(){
+    ui.importText = String(reader.result || '');
+    ui.importFileName = file.name;
+    var ta = $('#importText');
+    if(ta) ta.value = ui.importText;
+    ui.importPreview = parseImport(ui.importText);
+    renderImportPreview();
+    toast('已读取 ' + file.name);
+  };
+  reader.readAsText(file, 'utf-8');
+}
+function parseImport(text){
+  var res = {cards:[], errors:[], format:'', total:0};
+  var raw = String(text || '').trim();
+  if(!raw){ res.errors.push('内容为空'); return res; }
+
+  // JSON
+  if(raw[0] === '{' || raw[0] === '['){
+    try{
+      var data = JSON.parse(raw);
+      var list = Array.isArray(data) ? data : (Array.isArray(data.cards) ? data.cards : null);
+      if(!list) throw new Error('JSON 里找不到 cards 数组');
+      res.format = 'JSON';
+      list.forEach(function(item, i){
+        if(!item || typeof item !== 'object'){ res.errors.push('第 ' + (i+1) + ' 条不是对象'); return; }
+        var front = item.front || item.question || item.q || item.正面 || item.问题;
+        var back = item.back || item.answer || item.a || item.背面 || item.答案;
+        if(!String(front||'').trim()){ res.errors.push('第 ' + (i+1) + ' 条缺少正面'); return; }
+        res.cards.push({
+          front: String(front),
+          back: String(back || ''),
+          note: String(item.note || item.笔记 || ''),
+          noteUrl: String(item.noteUrl || item.link || ''),
+          tags: Array.isArray(item.tags) ? item.tags : [],
+          created: item.created,
+          sched: item.sched
+        });
+      });
+    }catch(e){
+      res.errors.push('JSON 解析失败：' + e.message);
+    }
+    res.total = res.cards.length;
+    return res;
+  }
+
+  var records = [];
+  if(raw.indexOf('\t') >= 0){
+    res.format = 'TSV / Tab 分隔';
+    records = raw.split(/\r?\n/).map(function(line){ return {cols: line.split('\t').map(function(s){ return s.trim(); })}; });
+  }else if(raw.indexOf('|') >= 0){
+    res.format = '竖线分隔';
+    records = raw.split(/\r?\n/).map(function(line){ return {cols: line.split('|').map(function(s){ return s.trim(); })}; });
+  }else{
+    res.format = 'CSV';
+    records = parseCSV(raw).map(function(cols){ return {cols: cols.map(function(s){ return s.trim(); })}; });
+  }
+
+  records.forEach(function(rec, i){
+    var cols = rec.cols;
+    if(cols.length === 1 && !cols[0]) return;         // 空行
+    if(/^\s*(#|\/\/)\s/.test(cols[0]) && cols.length === 1) return; // 注释行
+    if(cols[0] === '正面' || cols[0].toLowerCase() === 'front') return; // 表头
+    var front = cols[0] || '';
+    var back = cols[1] || '';
+    if(!front.trim()){ res.errors.push('第 ' + (i+1) + ' 行没有正面内容'); return; }
+    var tags = [];
+    for(var k=2;k<cols.length;k++) if(cols[k]) tags = tags.concat(String(cols[k]).replace(/[#，,、]/g, ' ').split(/\s+/).filter(Boolean));
+    res.cards.push({front: front, back: back, tags: tags});
+  });
+  res.total = res.cards.length;
+  return res;
+}
+function parseCSV(text){
+  var rows = [], row = [], cell = '', inQ = false;
+  for(var i=0;i<text.length;i++){
+    var ch = text[i];
+    if(inQ){
+      if(ch === '"'){
+        if(text[i+1] === '"'){ cell += '"'; i++; }
+        else inQ = false;
+      }else cell += ch;
+    }else{
+      if(ch === '"' && cell === '') inQ = true;
+      else if(ch === ','){ row.push(cell); cell = ''; }
+      else if(ch === '\n'){ row.push(cell); rows.push(row); row = []; cell = ''; }
+      else if(ch === '\r'){ /* skip */ }
+      else cell += ch;
+    }
+  }
+  if(cell !== '' || row.length){ row.push(cell); rows.push(row); }
+  return rows.filter(function(r){ return r.some(function(c){ return c.trim(); }); });
+}
+function renderImportPreview(){
+  var host = $('#importResult');
+  if(!host) return;
+  var p = ui.importPreview;
+  if(!p){ host.innerHTML = ''; return; }
+  var sample = p.cards.slice(0, 5);
+  host.innerHTML = '<div class="block">' +
+    '<h2>解析结果</h2>' +
+    '<p class="lead">识别格式：<b>' + p.format + '</b> · 可导入 <b>' + p.cards.length + '</b> 张' +
+      (p.errors.length ? ' · 跳过 ' + p.errors.length + ' 条' : '') + '</p>' +
+    (sample.length ? '<table class="preview-table"><thead><tr><th>正面</th><th>背面</th><th>标签</th></tr></thead><tbody>' +
+      sample.map(function(c){
+        var tags = extractTags([c.front, c.back].join('\n')).concat(c.tags || []);
+        return '<tr><td>' + esc(plain(c.front, 60)) + '</td><td>' + esc(plain(c.back, 60)) + '</td><td>' + esc(uniq(tags).map(function(t){return '#'+t;}).join(' ')) + '</td></tr>';
+      }).join('') + '</tbody></table>' : '') +
+    (p.errors.length ? '<p class="hint" style="margin-top:10px">' + p.errors.slice(0,5).map(esc).join('；') + '</p>' : '') +
+    '<div class="row end" style="margin-top:14px">' +
+      '<button class="btn" data-act="clear-import">清空</button>' +
+      '<button class="btn primary" data-act="do-import"' + (p.cards.length ? '' : ' disabled') + '>导入 ' + p.cards.length + ' 张卡片</button>' +
+    '</div>' +
+  '</div>';
+}
+
+/* ================= Anki 包解析（.apkg / .colpkg） ================= */
+var TD = new TextDecoder('utf-8');
+function utf8(buf){ return TD.decode(buf); }
+
+function readZipIndex(bytes){
+  var view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  var eocd = -1, min = Math.max(0, bytes.length - 66000);
+  for(var i = bytes.length - 22; i >= min; i--){
+    if(bytes[i] === 0x50 && bytes[i+1] === 0x4b && bytes[i+2] === 0x05 && bytes[i+3] === 0x06){ eocd = i; break; }
+  }
+  if(eocd < 0) throw new Error('不是有效的 zip 包');
+  var count = view.getUint16(eocd + 10, true);
+  var p = view.getUint32(eocd + 16, true);
+  var entries = {};
+  for(var n = 0; n < count && p + 46 <= bytes.length; n++){
+    if(view.getUint32(p, true) !== 0x02014b50) break;
+    var method = view.getUint16(p + 10, true);
+    var compSize = view.getUint32(p + 20, true);
+    var nameLen = view.getUint16(p + 28, true);
+    var extraLen = view.getUint16(p + 30, true);
+    var commentLen = view.getUint16(p + 32, true);
+    var localOff = view.getUint32(p + 42, true);
+    var name = utf8(bytes.subarray(p + 46, p + 46 + nameLen));
+    p += 46 + nameLen + extraLen + commentLen;
+    if(compSize === 0xffffffff) throw new Error('暂不支持超过 4GB 的压缩包');
+    var lNameLen = view.getUint16(localOff + 26, true);
+    var lExtraLen = view.getUint16(localOff + 28, true);
+    var start = localOff + 30 + lNameLen + lExtraLen;
+    entries[name] = {method: method, data: bytes.subarray(start, start + compSize)};
+  }
+  return entries;
+}
+
+async function zipEntryBytes(entry){
+  if(entry.method === 0) return entry.data;
+  if(entry.method !== 8) throw new Error('不支持的压缩方式（method ' + entry.method + '）');
+  if(typeof DecompressionStream === 'undefined') throw new Error('当前浏览器不支持解压 zip，请换用最新版 Chrome / Edge');
+  var stream = new Blob([entry.data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+// 只读 SQLite 解析：够读 Anki 的 notes / cards / col 表，不做 SQL 引擎
+function SQLiteDB(bytes){
+  if(utf8(bytes.subarray(0, 15)) !== 'SQLite format 3') throw new Error('collection 文件不是 SQLite 格式');
+  this.bytes = bytes;
+  this.view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  var pageSize = this.view.getUint16(16, false);
+  this.pageSize = pageSize === 1 ? 65536 : pageSize;
+  this.usable = this.pageSize - bytes[20];
+}
+SQLiteDB.prototype.u16 = function(off){ return this.view.getUint16(off, false); };
+SQLiteDB.prototype.u32 = function(off){ return this.view.getUint32(off, false); };
+SQLiteDB.prototype.varint = function(off, buf){
+  var b = buf || this.bytes, v = 0, i, x;
+  for(i = 0; i < 8; i++){
+    x = b[off + i];
+    v = v * 128 + (x & 0x7f);
+    if(!(x & 0x80)) return {value: v, next: off + i + 1};
+  }
+  return {value: v * 256 + b[off + 8], next: off + 9};
+};
+SQLiteDB.prototype.payload = function(off, size){
+  var U = this.usable, maxLocal = U - 35;
+  if(size <= maxLocal) return this.bytes.subarray(off, off + size);
+  var M = Math.floor((U - 12) * 32 / 255) - 23;
+  var local = Math.max(M, maxLocal);
+  var out = new Uint8Array(size);
+  out.set(this.bytes.subarray(off, off + local), 0);
+  var p = this.u32(off + local), filled = local;
+  while(p && filled < size){
+    var pb = (p - 1) * this.pageSize;
+    var next = this.u32(pb);
+    var take = Math.min(this.pageSize - 4, size - filled);
+    out.set(this.bytes.subarray(pb + 4, pb + 4 + take), filled);
+    filled += take;
+    p = next;
+  }
+  return out;
+};
+SQLiteDB.prototype.record = function(buf){
+  var head = this.varint(0, buf);
+  var headerSize = head.value;
+  var types = [], p = head.next, t;
+  while(p < headerSize){ t = this.varint(p, buf); types.push(t.value); p = t.next; }
+  var body = headerSize;
+  var dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  function intAt(start, len){
+    if(len === 8){
+      return dv.getUint32(start, false) * 4294967296 + dv.getUint32(start + 4, false);
+    }
+    var v = 0, k;
+    for(k = 0; k < len; k++) v = v * 256 + buf[start + k];
+    var bits = len * 8;
+    if(v >= Math.pow(2, bits - 1)) v -= Math.pow(2, bits);
+    return v;
+  }
+  return types.map(function(ty){
+    if(ty === 0) return null;
+    if(ty >= 1 && ty <= 6){
+      var len = [0,1,2,3,4,6,8][ty];
+      var v = intAt(body, len); body += len; return v;
+    }
+    if(ty === 7){ var f = dv.getFloat64(body, false); body += 8; return f; }
+    if(ty === 8) return 0;
+    if(ty === 9) return 1;
+    if(ty >= 12 && ty % 2 === 0){
+      var blen = (ty - 12) / 2;
+      var blob = buf.subarray(body, body + blen); body += blen; return blob;
+    }
+    var tlen = (ty - 13) / 2;
+    var str = utf8(buf.subarray(body, body + tlen)); body += tlen; return str;
+  });
+};
+SQLiteDB.prototype.walk = function(pageNo, onRow){
+  var base = (pageNo - 1) * this.pageSize;
+  var h = base + (pageNo === 1 ? 100 : 0);
+  var type = this.bytes[h];
+  if(type !== 5 && type !== 13) throw new Error('无法解析的页类型 ' + type);
+  var nCells = this.u16(h + 3);
+  var ptrBase = h + (type === 5 ? 12 : 8);
+  var rightMost = type === 5 ? this.u32(h + 8) : 0;
+  for(var i = 0; i < nCells; i++){
+    var cellOff = base + this.u16(ptrBase + i * 2);
+    if(type === 5){
+      this.walk(this.u32(cellOff), onRow);
+    }else{
+      var pl = this.varint(cellOff);
+      var rp = this.varint(pl.next);
+      // 第二段 varint 是 rowid：Anki 的 notes.id / cards.id 是 INTEGER PRIMARY KEY（rowid 别名），
+      // 记录里存的是 NULL，真实主键只在这里
+      onRow(this.record(this.payload(rp.next, pl.value)), rp.value);
+    }
+  }
+  if(rightMost) this.walk(rightMost, onRow);
+};
+SQLiteDB.prototype.rows = function(tableName){
+  var root = null, self = this;
+  this.walk(1, function(row){
+    if(row[0] === 'table' && row[1] === tableName) root = row[3];
+  });
+  if(!root) return [];
+  var out = [];
+  this.walk(root, function(row, rowid){ row.rowid = rowid; out.push(row); });
+  return out;
+};
+
+var _entBox = null;
+function decodeEntities(s){
+  // textarea 走 RCDATA 解析：能正确还原 &sup2; / &mdash; 这类命名实体，
+  // 又不会把内容当标签解析（标签在 ankiClean 里已先剥离），不会触发任何执行
+  if(typeof document === 'undefined'){
+    return s.replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+  }
+  if(!_entBox) _entBox = document.createElement('textarea');
+  _entBox.innerHTML = s;
+  return _entBox.value;
+}
+function ankiClean(html){
+  var s = String(html == null ? '' : html);
+  s = s.replace(/<br\s*\/?>/gi, '\n')
+       .replace(/<li[^>]*>/gi, '- ')
+       .replace(/<\/(div|p|li|tr|h\d)>/gi, '\n')
+       .replace(/<img[^>]*src=["']([^"']+)["'][^>]*>/gi, '![]($1)')
+       .replace(/<(b|strong)>/gi, '**').replace(/<\/(b|strong)>/gi, '**')
+       .replace(/<(i|em)>/gi, '*').replace(/<\/(i|em)>/gi, '*')
+       .replace(/<[^>]+>/g, '');
+  s = s.replace(/\[sound:[^\]]*\]/gi, '');
+  s = decodeEntities(s);
+  return s.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+var CLOZE_RE = /\{\{c\d+::([\s\S]*?)(?:::[\s\S]*?)?\}\}/g;
+
+function ankiNotesToCards(db){
+  var notes = db.rows('notes');
+  if(!notes.length) throw new Error('数据库里没有找到卡片（notes 表为空）');
+  var deckNames = {}, noteDeck = {};
+  try{
+    var col = db.rows('col')[0];
+    // col 表：... conf(8) models(9) decks(10) dconf(11) tags(12)
+    if(col){
+      [10, 11].forEach(function(idx){
+        if(Object.keys(deckNames).length || typeof col[idx] !== 'string') return;
+        try{
+          var decks = JSON.parse(col[idx]);
+          Object.keys(decks).forEach(function(k){
+            if(decks[k] && decks[k].name) deckNames[k] = decks[k].name;
+          });
+        }catch(e){ /* 不是牌组 JSON 就试下一列 */ }
+      });
+    }
+  }catch(e){ /* 牌组信息读不到就跳过 */ }
+  try{
+    db.rows('cards').forEach(function(c){
+      if(c[1] != null && c[2] != null && deckNames[c[2]]) noteDeck[c[1]] = deckNames[c[2]];
+    });
+  }catch(e){}
+
+  var out = [];
+  notes.forEach(function(row){
+    var flds = String(row[6] == null ? '' : row[6]).split('\u001f');
+    var first = flds[0] || '';
+    var front, back, note = '';
+    if(/\{\{c\d+::/.test(first)){
+      front = ankiClean(first.replace(CLOZE_RE, '[…]'));
+      back = ankiClean(first.replace(CLOZE_RE, '**$1**'));
+      if(flds[1]) note = ankiClean(flds.slice(1).join('\n'));
+    }else{
+      front = ankiClean(first);
+      back = ankiClean(flds[1] || '');
+      if(flds.length > 2) note = ankiClean(flds.slice(2).filter(Boolean).join('\n'));
+    }
+    if(!front && !back) return;
+    var tags = String(row[5] == null ? '' : row[5]).trim().split(/\s+/)
+      .filter(Boolean).map(function(t){ return t.replace(/^#/, ''); });
+    var deck = noteDeck[row.rowid];
+    if(deck) tags.unshift(deck);
+    out.push({front: front, back: back, note: note, tags: uniq(tags)});
+  });
+  return out;
+}
+
+async function parseAnkiPackage(file){
+  if(file.size > 400 * 1024 * 1024) throw new Error('包太大（' + Math.round(file.size/1048576) + 'MB），请先在 Anki 里去掉媒体文件再导出');
+  var bytes = new Uint8Array(await file.arrayBuffer());
+  var entries = readZipIndex(bytes);
+  var target = ['collection.anki21', 'collection.anki2', 'collection.anki21b'].filter(function(n){ return entries[n]; })[0];
+  if(!target){
+    var found = Object.keys(entries).filter(function(n){ return /collection/i.test(n); });
+    target = found[0];
+  }
+  if(!target) throw new Error('压缩包里没有 collection.anki2 / collection.anki21，可能不是 Anki 导出的包');
+  if(/anki21b$/.test(target)){
+    throw new Error('这是新版 zstd 压缩的数据库。请在 Anki 里选「导出 → 支持旧版 Anki 的 .apkg」重新导出，或改用 CSV 导出');
+  }
+  var dbBytes = await zipEntryBytes(entries[target]);
+  var db = new SQLiteDB(dbBytes);
+  var cards = ankiNotesToCards(db);
+  return {format: 'Anki 包（' + target + '）', cards: cards, errors: [], total: cards.length};
+}
+
+async function readAnkiPackage(file){
+  var host = $('#importResult');
+  if(host) host.innerHTML = '<div class="block"><p class="lead">正在解包并解析 ' + esc(file.name) + ' …</p></div>';
+  try{
+    var p = await parseAnkiPackage(file);
+    ui.importPreview = p;
+    ui.importFileName = file.name;
+    renderImportPreview();
+    toast('从 ' + file.name + ' 读到 ' + p.cards.length + ' 张卡片');
+  }catch(e){
+    ui.importPreview = null;
+    if(host) host.innerHTML = '<div class="block">' +
+      '<p class="lead" style="color:var(--again)">无法导入 ' + esc(file.name) + '</p>' +
+      '<p class="hint">' + esc(e.message) + '</p>' +
+      '<p class="hint">兜底方案：在 Anki 里「导出 → 卡片 / 笔记 → 纯文本」，或导出 CSV 再来导入。</p></div>';
+  }
+}
+
+/* ================= 视图：导出 ================= */
+function exportScopeCards(){
+  var arr = state.cards.slice();
+  if(ui.exportScope === 'tag'){
+    var picked = Object.keys(ui.exportTags).filter(function(t){ return ui.exportTags[t]; });
+    var map = {};
+    picked.forEach(function(t){ map[t] = 1; });
+    arr = arr.filter(function(c){ return (c.tags||[]).some(function(t){ return map[t]; }); });
+  }else if(ui.exportScope === 'selected'){
+    arr = arr.filter(function(c){ return ui.selected[c.id]; });
+  }
+  arr.sort(function(a,b){ return a.created - b.created; });
+  return arr;
+}
+function renderExport(){
+  var map = tagCounts();
+  var tags = Object.keys(map).sort(function(a,b){ return map[b]-map[a]; });
+  var scopeCards = exportScopeCards();
+
+  var formatLabels = [
+    ['md', 'Markdown 存档', '人可读，含创建时间与复习情况'],
+    ['json', 'JSON 备份', '完整保留复习进度，可再次导入'],
+    ['csv', 'CSV 表格', 'Excel 可直接打开'],
+    ['tsv', 'Anki TSV', '可导入到 Anki 桌面版']
+  ];
+
+  $('#content').innerHTML = '<div class="pane">' +
+    '<div class="block">' +
+      '<h2>导出范围</h2>' +
+      '<p class="lead">可以导出全部卡片，也可以只导出某个标签下的卡片。</p>' +
+      '<div class="radio-row" id="scopeRow">' +
+        '<label class="' + (ui.exportScope==='all'?'on':'') + '" data-act="scope" data-scope="all">全部卡片（' + state.cards.length + '）</label>' +
+        '<label class="' + (ui.exportScope==='tag'?'on':'') + '" data-act="scope" data-scope="tag">按标签（' + tags.length + ' 个）</label>' +
+        '<label class="' + (ui.exportScope==='selected'?'on':'') + '" data-act="scope" data-scope="selected">已选中（' + Object.keys(ui.selected).length + '）</label>' +
+        (ui.tags.length ? '<label data-act="scope-quick" data-scope="tag">当前筛选 ' + esc(ui.tags.map(function(t){ return '#' + t; }).join(' ')) + '</label>' : '') +
+      '</div>' +
+      (ui.exportScope === 'tag'
+        ? '<div class="scope-list">' + (tags.length ? tags.map(function(t){
+            return '<button class="scope-tag' + (ui.exportTags[t] ? ' on' : '') + '" data-act="export-tag" data-tag="' + esc(t) + '">#' + esc(t) + ' · ' + map[t] + '</button>';
+          }).join('') : '<span class="hint">还没有标签</span>') + '</div>'
+        : '') +
+    '</div>' +
+    '<div class="block">' +
+      '<h2>存档格式</h2>' +
+      '<p class="lead">' + formatLabels.length + ' 种格式，按用途选。</p>' +
+      '<div class="radio-row" id="formatRow">' +
+        formatLabels.map(function(f){
+          return '<label class="' + (ui.exportFormat===f[0]?'on':'') + '" data-act="format" data-format="' + f[0] + '">' +
+            '<div><div>' + f[1] + '</div><div style="font-size:11px;font-weight:400;color:var(--muted)">' + f[2] + '</div></div></label>';
+        }).join('') +
+      '</div>' +
+      '<div class="row" style="margin-top:14px">' +
+        '<label class="switch"><input type="checkbox" id="expNotes"' + (ui.exportNotes?' checked':'') + '>包含笔记正文</label>' +
+        '<label class="switch"><input type="checkbox" id="expSched"' + (ui.exportSched?' checked':'') + '>包含创建日期与复习情况</label>' +
+      '</div>' +
+    '</div>' +
+    '<div class="block">' +
+      '<h2>准备导出</h2>' +
+      '<p class="lead">将导出 <b>' + scopeCards.length + '</b> 张卡片（' + (ui.exportFormat.toUpperCase()) + '）。</p>' +
+      '<div class="row">' +
+        '<button class="btn primary" data-act="do-export"' + (scopeCards.length ? '' : ' disabled') + '>下载存档文件</button>' +
+        '<span class="hint">文件名形如 anki-cards-' + fmtDate(Date.now()).replace(/-/g,'') + '.md</span>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+
+  var en = $('#expNotes'), es = $('#expSched');
+  if(en) en.addEventListener('change', function(){ ui.exportNotes = this.checked; });
+  if(es) es.addEventListener('change', function(){ ui.exportSched = this.checked; });
+}
+function cardTagText(card){
+  return (card.tags||[]).map(function(t){ return '#' + t; }).join(' ');
+}
+function schedText(card){
+  var s = card.sched;
+  var stageLabel = s.reps ? STEPS[Math.max(0, Math.min(STEPS.length-1, s.stage))].label : '未开始';
+  return '复习 ' + (s.reps|0) + ' 次 / 忘记 ' + (s.lapses|0) + ' 次 / 当前阶段 ' + stageLabel + ' / 下次 ' + fmtDT(s.due);
+}
+function exportMarkdown(cards){
+  var now = Date.now();
+  var out = [];
+  out.push('# Anki Lite 卡片存档');
+  out.push('');
+  out.push('- 导出时间：' + fmtDT(now));
+  out.push('- 卡片数量：' + cards.length);
+  if(ui.exportScope === 'tag'){
+    out.push('- 标签范围：' + Object.keys(ui.exportTags).filter(function(t){return ui.exportTags[t];}).map(function(t){return '#'+t;}).join(' '));
+  }
+  out.push('');
+  out.push('---');
+  out.push('');
+  cards.forEach(function(c, i){
+    out.push('## ' + (i+1) + '. ' + plain(c.front, 60));
+    out.push('');
+    out.push('- 标签：' + (cardTagText(c) || '（无）'));
+    if(ui.exportSched){
+      out.push('- 创建时间：' + fmtDT(c.created));
+      out.push('- 复习情况：' + schedText(c));
+      if(c.sched.last) out.push('- 上次复习：' + fmtDT(c.sched.last));
+      if(c.sched.history && c.sched.history.length){
+        var recent = c.sched.history.slice(-5).map(function(h){
+          var g = GRADES.filter(function(x){return x.key===h.g;})[0];
+          return fmtDate(h.t) + ' ' + (g?g.label:h.g);
+        }).join('，');
+        out.push('- 最近记录：' + recent);
+      }
+    }
+    out.push('');
+    out.push('**正面**');
+    out.push('');
+    out.push(c.front.trim());
+    out.push('');
+    out.push('**背面**');
+    out.push('');
+    out.push((c.back || '（空）').trim());
+    out.push('');
+    if(ui.exportNotes && (c.note || c.noteUrl)){
+      out.push('**笔记**');
+      out.push('');
+      if(c.noteUrl) out.push('链接：' + c.noteUrl);
+      if(c.note){ out.push(''); out.push(c.note.trim()); }
+      out.push('');
+    }
+    out.push('---');
+    out.push('');
+  });
+  return out.join('\n');
+}
+function exportJSON(cards){
+  return JSON.stringify({
+    app: 'anki-lite',
+    version: 1,
+    exportedAt: Date.now(),
+    exportedAtText: fmtDT(Date.now()),
+    scope: ui.exportScope,
+    total: cards.length,
+    cards: cards.map(function(c){
+      var o = {
+        id: c.id, front: c.front, back: c.back,
+        created: c.created, updated: c.updated,
+        tags: c.tags, manualTags: c.manualTags,
+        suspended: c.suspended
+      };
+      if(ui.exportNotes){ o.note = c.note; o.noteUrl = c.noteUrl; }
+      if(ui.exportSched) o.sched = c.sched;
+      return o;
+    })
+  }, null, 2);
+}
+function csvCell(v){
+  var s = String(v == null ? '' : v);
+  if(/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+function exportCSV(cards){
+  var head = ['正面','背面','标签'];
+  if(ui.exportNotes) head = head.concat(['笔记','笔记链接']);
+  if(ui.exportSched) head = head.concat(['创建时间','上次复习','下次复习','复习次数','遗忘次数','记忆阶段']);
+  var rows = [head.join(',')];
+  cards.forEach(function(c){
+    var r = [c.front, c.back, cardTagText(c)];
+    if(ui.exportNotes) r = r.concat([c.note || '', c.noteUrl || '']);
+    if(ui.exportSched) r = r.concat([
+      fmtDT(c.created), fmtDT(c.sched.last), fmtDT(c.sched.due),
+      (c.sched.reps|0), (c.sched.lapses|0), STEPS[Math.max(0,Math.min(STEPS.length-1, c.sched.stage))].label
+    ]);
+    rows.push(r.map(csvCell).join(','));
+  });
+  return '\ufeff' + rows.join('\r\n');
+}
+function exportTSV(cards){
+  var rows = [];
+  cards.forEach(function(c){
+    var front = String(c.front).replace(/\n/g, '<br>').replace(/\t/g, ' ');
+    var back = String(c.back).replace(/\n/g, '<br>').replace(/\t/g, ' ');
+    var tags = (c.tags||[]).join(' ');
+    rows.push([front, back, tags].join('\t'));
+  });
+  return rows.join('\n');
+}
+function doExport(){
+  var cards = exportScopeCards();
+  if(!cards.length){ toast('没有可导出的卡片'); return; }
+  var stamp = fmtDate(Date.now()).replace(/-/g, '') + '-' + pad2(new Date().getHours()) + pad2(new Date().getMinutes());
+  var name = 'anki-cards-' + stamp;
+  if(ui.exportFormat === 'md') download(name + '.md', exportMarkdown(cards), 'text/markdown');
+  else if(ui.exportFormat === 'json') download(name + '.json', exportJSON(cards), 'application/json');
+  else if(ui.exportFormat === 'csv') download(name + '.csv', exportCSV(cards), 'text/csv');
+  else download(name + '.txt', exportTSV(cards), 'text/tab-separated-values');
+  toast('已导出 ' + cards.length + ' 张卡片');
+}
+
+/* ================= 视图：统计 ================= */
+function renderStats(){
+  var now = Date.now();
+  var total = state.cards.length;
+  var dueNow = state.cards.filter(function(c){ return isDue(c, now); }).length;
+  var newCards = state.cards.filter(function(c){ return !c.sched.reps; }).length;
+  var mature = state.cards.filter(function(c){ return (c.sched.stage|0) >= 5; }).length;
+  var reps = 0, lapses = 0;
+  state.cards.forEach(function(c){ reps += c.sched.reps|0; lapses += c.sched.lapses|0; });
+  var acc = reps ? Math.round((reps - lapses) / reps * 100) : 0;
+
+  // 近 14 天复习量
+  var days = [], counts = {};
+  for(var i=13;i>=0;i--){
+    var t = dayStart(now) - i*DAY;
+    days.push(t); counts[t] = 0;
+  }
+  state.cards.forEach(function(c){
+    (c.sched.history||[]).forEach(function(h){
+      var d = dayStart(h.t);
+      if(counts[d] !== undefined) counts[d]++;
+    });
+  });
+  var max = Math.max(1, Math.max.apply(null, days.map(function(d){ return counts[d]; })));
+
+  // 未来 7 天到期
+  var forecast = [];
+  for(var j=0;j<7;j++){
+    var start = dayStart(now) + j*DAY;
+    var end = start + DAY;
+    var n = state.cards.filter(function(c){
+      var d = c.sched.due || 0;
+      return !c.suspended && d >= (j===0 ? 0 : start) && d < end && !(j===0 && d < now);
+    }).length;
+    forecast.push({label: j===0 ? '今天' : (j===1?'明天':new Date(start).getMonth()+1+'/'+new Date(start).getDate()), n:n});
+  }
+  var fmax = Math.max(1, Math.max.apply(null, forecast.map(function(f){ return f.n; })));
+
+  $('#content').innerHTML = '<div class="pane">' +
+    '<div class="stat-grid">' +
+      '<div class="stat"><b>' + total + '</b><span>卡片总数</span></div>' +
+      '<div class="stat"><b>' + dueNow + '</b><span>现在待复习</span></div>' +
+      '<div class="stat"><b>' + newCards + '</b><span>未开始</span></div>' +
+      '<div class="stat"><b>' + mature + '</b><span>已进入长期记忆</span></div>' +
+      '<div class="stat"><b>' + reps + '</b><span>累计复习次数</span></div>' +
+      '<div class="stat"><b>' + acc + '%</b><span>记忆保持率</span></div>' +
+    '</div>' +
+    '<div class="block">' +
+      '<h2>近 14 天复习量</h2>' +
+      '<p class="lead">每天实际点击评级的次数。</p>' +
+      '<div class="chart-wrap"><div class="chart">' +
+        days.map(function(d){
+          var h = Math.max(2, Math.round(counts[d]/max*100));
+          var lbl = (new Date(d).getMonth()+1) + '/' + new Date(d).getDate();
+          return '<div class="bar" style="height:' + h + '%" title="' + fmtDate(d) + '：' + counts[d] + ' 次"><span>' + lbl + '</span></div>';
+        }).join('') +
+      '</div></div>' +
+    '</div>' +
+    '<div class="block">' +
+      '<h2>未来 7 天到期</h2>' +
+      '<p class="lead">按当前复习阶梯预测的到期卡片数。</p>' +
+      '<div class="chart-wrap"><div class="chart">' +
+        forecast.map(function(f){
+          var h = Math.max(2, Math.round(f.n/fmax*100));
+          return '<div class="bar" style="height:' + h + '%" title="' + f.label + '：' + f.n + ' 张"><span>' + f.label + '</span></div>';
+        }).join('') +
+      '</div></div>' +
+    '</div>' +
+    '<div class="block">' +
+      '<h2>复习阶梯</h2>' +
+      '<p class="lead">忘记 → 5 分钟；模糊 → 原地再练；记得 → 下一阶；熟练 → 跳过一阶。</p>' +
+      '<div class="row">' + STEPS.map(function(s, i){
+        return '<span class="chip ' + (i<4?'gray':'green') + '">' + (i+1) + '. ' + s.label + '</span>';
+      }).join('') + '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+/* ================= 抽屉 ================= */
+function openDrawer(id){
+  ui.drawerId = id;
+  if(ui.view === 'library') ui.order = filteredCards().map(function(c){ return c.id; });
+  document.body.classList.add('drawer-open');
+  $('#drawer').setAttribute('aria-hidden','false');
+  renderDrawer();
+}
+function closeDrawer(){
+  ui.drawerId = null;
+  document.body.classList.remove('drawer-open');
+  $('#drawer').setAttribute('aria-hidden','true');
+}
+function renderDrawer(){
+  var card = findCard(ui.drawerId);
+  if(!card) return closeDrawer();
+  var idx = ui.order.indexOf(card.id);
+  $('#drawerPos').textContent = (idx >= 0 ? (idx+1) + ' / ' + ui.order.length : '');
+
+  var histHtml = '';
+  if(card.sched.history && card.sched.history.length){
+    histHtml = '<div class="drawer-sec"><div class="label">复习记录</div><div class="hist">' +
+      card.sched.history.slice(-8).reverse().map(function(h){
+        var g = GRADES.filter(function(x){ return x.key === h.g; })[0];
+        return '<div><i>' + fmtDT(h.t) + '</i> · ' + (g ? g.label : h.g) + ' → 下次 ' + fmtDT(h.due) + '</div>';
+      }).join('') + '</div></div>';
+  }
+
+  var noteHtml = '';
+  if(card.noteUrl){
+    noteHtml = '<div class="drawer-sec"><div class="label">笔记链接</div>' +
+      '<div class="note-link"><span>🔗</span><span style="flex:1">' + esc(card.noteUrl) + '</span>' +
+      '<a class="btn ghost" href="' + esc(card.noteUrl) + '" target="_blank" rel="noopener">新窗口打开</a></div>' +
+      (SAFE_URL.test(card.noteUrl) ? '<iframe class="note-frame" src="' + esc(card.noteUrl) + '" referrerpolicy="no-referrer" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>' : '') +
+      '<div class="hint" style="margin-top:6px">部分站点禁止被嵌入，若上方空白请点「新窗口打开」。</div></div>';
+  }
+  if(card.note){
+    noteHtml += '<div class="drawer-sec"><div class="label">笔记</div><div class="md">' + md(card.note) + '</div></div>';
+  }
+  if(!noteHtml) noteHtml = '<div class="drawer-sec"><div class="label">笔记</div><div class="hint">还没有笔记。点右上角「编辑」补充 Markdown 笔记或链接。</div></div>';
+
+  $('#drawerBody').innerHTML =
+    '<h2 class="drawer-title md">' + md(card.front) + '</h2>' +
+    '<div class="drawer-meta">' +
+      (card.tags||[]).map(function(t){ return '<span class="chip">#' + esc(t) + '</span>'; }).join('') +
+      '<span class="chip gray">创建 ' + fmtDate(card.created) + '</span>' +
+      '<span class="chip ' + (isDue(card) ? 'red' : 'gray') + '">' + (isDue(card) ? '待复习' : '下次 ' + fmtDT(card.sched.due)) + '</span>' +
+    '</div>' +
+    '<div class="drawer-sec"><div class="label">背面</div><div class="md">' + md(card.back || '（空）') + '</div></div>' +
+    '<div class="drawer-sec"><div class="label">记忆状态</div>' +
+      '<div class="sched-box">' +
+        '<div><span>阶段</span><b>' + (card.sched.reps ? STEPS[Math.max(0,Math.min(STEPS.length-1,card.sched.stage))].label : '未开始') + '</b></div>' +
+        '<div><span>复习次数</span><b>' + (card.sched.reps|0) + '</b></div>' +
+        '<div><span>遗忘次数</span><b>' + (card.sched.lapses|0) + '</b></div>' +
+        '<div><span>下次到期</span><b>' + fmtDT(card.sched.due) + '</b></div>' +
+      '</div>' +
+    '</div>' +
+    noteHtml + histHtml +
+    '<div class="drawer-sec"><div class="row" style="margin-top:10px">' +
+      '<button class="btn" data-act="edit" data-id="' + card.id + '">编辑卡片</button>' +
+      '<button class="btn" data-act="toggle-suspend" data-id="' + card.id + '">' + (card.suspended ? '恢复学习' : '暂停学习') + '</button>' +
+      '<button class="btn danger" data-act="del" data-id="' + card.id + '">删除</button>' +
+    '</div></div>';
+}
+function drawerStep(dir){
+  if(!ui.order.length) return;
+  var idx = ui.order.indexOf(ui.drawerId);
+  if(idx < 0) idx = 0;
+  var next = ui.order[(idx + dir + ui.order.length) % ui.order.length];
+  ui.drawerId = next;
+  renderDrawer();
+}
+
+/* ================= 编辑弹窗 ================= */
+function openEditor(id){
+  var card = id ? findCard(id) : null;
+  var isNew = !card;
+  if(isNew) card = { front:'', back:'', note:'', noteUrl:'', manualTags:[], tags:[], created:Date.now(), sched:{stage:0,due:Date.now(),reps:0,lapses:0,history:[]} };
+
+  $('#modalPanel').innerHTML =
+    '<h3>' + (isNew ? '新建卡片' : '编辑卡片') + '</h3>' +
+    '<div class="form-row"><label>正面（问题）</label>' +
+      '<textarea class="field" id="edFront" rows="3" placeholder="支持 Markdown，写 #标签 会自动归类">' + esc(card.front) + '</textarea></div>' +
+    '<div class="form-row"><label>背面（答案）</label>' +
+      '<textarea class="field" id="edBack" rows="3">' + esc(card.back) + '</textarea></div>' +
+    '<div class="form-row"><label>笔记（Markdown，可选）</label>' +
+      '<textarea class="field" id="edNote" rows="5" placeholder="补充说明、代码块、列表…">' + esc(card.note) + '</textarea></div>' +
+    '<div class="form-row"><label>笔记链接（可选，侧边抽屉会内嵌打开）</label>' +
+      '<input class="field" id="edUrl" placeholder="https://…" value="' + esc(card.noteUrl) + '"></div>' +
+    '<div class="form-row"><label>额外标签（空格分隔，可留空）</label>' +
+      '<input class="field" id="edTags" placeholder="#记忆 学习" value="' + esc((card.manualTags||[]).join(' ')) + '"></div>' +
+    '<div class="row end" style="margin-top:18px">' +
+      (isNew ? '' : '<button class="btn danger" data-act="del" data-id="' + card.id + '">删除</button>') +
+      '<div style="flex:1"></div>' +
+      '<button class="btn" data-act="modal-close">取消</button>' +
+      '<button class="btn primary" data-act="save-card" data-id="' + (isNew ? '' : card.id) + '">保存</button>' +
+    '</div>';
+  $('#modal').hidden = false;
+  setTimeout(function(){ var f = $('#edFront'); if(f) f.focus(); }, 30);
+}
+function closeModal(){ $('#modal').hidden = true; $('#modalPanel').innerHTML = ''; }
+function saveCardFromModal(id){
+  var front = $('#edFront').value.trim();
+  var back = $('#edBack').value.trim();
+  var note = $('#edNote').value.trim();
+  var noteUrl = $('#edUrl').value.trim();
+  var manual = $('#edTags').value.split(/[\s,，、]+/).map(function(t){ return t.replace(/^#/, '').trim(); }).filter(Boolean);
+  if(!front){ toast('正面内容不能为空'); return; }
+
+  if(id){
+    var c = findCard(id);
+    if(!c) return;
+    c.front = front; c.back = back; c.note = note; c.noteUrl = noteUrl;
+    c.manualTags = manual;
+    c.tags = computeTags(c);
+    c.updated = Date.now();
+    toast('已保存');
+  }else{
+    var card = makeCard({front:front, back:back, note:note, noteUrl:noteUrl, manualTags: manual});
+    state.cards.unshift(card);
+    toast('卡片已创建');
+  }
+  save();
+  closeModal();
+  render();
+  if(ui.drawerId) renderDrawer();
+}
+
+/* ================= 导入执行 ================= */
+function doImport(){
+  var p = ui.importPreview;
+  if(!p || !p.cards.length){ toast('没有可导入的卡片'); return; }
+  var dedupe = $('#dedupe') ? $('#dedupe').checked : true;
+  var replaceAll = $('#replaceAll') ? $('#replaceAll').checked : false;
+
+  var existing = {};
+  if(dedupe){
+    state.cards.forEach(function(c){ existing[(c.front + '\u0001' + c.back).trim()] = 1; });
+  }
+  if(replaceAll) state.cards = [];
+
+  var added = 0, skipped = 0;
+  p.cards.forEach(function(raw){
+    var key = (String(raw.front) + '\u0001' + String(raw.back)).trim();
+    if(dedupe && existing[key]){ skipped++; return; }
+    existing[key] = 1;
+    state.cards.unshift(makeCard(raw));
+    added++;
+  });
+  save();
+  ui.importPreview = null;
+  ui.importText = '';
+  toast('导入完成：新增 ' + added + ' 张' + (skipped ? '，跳过重复 ' + skipped + ' 张' : ''));
+  ui.view = 'library';
+  render();
+}
+
+/* ================= 主渲染 ================= */
+function render(){
+  renderSidebar();
+  renderTop();
+  if(ui.view === 'review') renderReview();
+  else if(ui.view === 'library') renderLibrary();
+  else if(ui.view === 'import') renderImport();
+  else if(ui.view === 'export') renderExport();
+  else if(ui.view === 'stats') renderStats();
+  if(ui.drawerId) renderDrawer();
+  try{ if(location.hash !== '#' + ui.view) history.replaceState(null, '', '#' + ui.view); }catch(e){ /* 沙箱环境可能禁止 */ }
+}
+function setView(v){
+  ui.view = v;
+  if(v === 'review') rebuildQueue();
+  render();
+}
+function rebuildQueue(){
+  ui.queue = dueCards().map(function(c){ return c.id; });
+  ui.qi = 0;
+  ui.revealed = false;
+  if(!ui.session.start) ui.session = {done:0, again:0, start:Date.now()};
+}
+
+/* ================= 事件 ================= */
+document.addEventListener('click', function(e){
+  var el = e.target.closest('[data-act]');
+  if(!el) {
+    var cardEl = e.target.closest('.review-card');
+    if(cardEl && !ui.revealed){ ui.revealed = true; render(); }
+    return;
+  }
+  var act = el.getAttribute('data-act');
+  var id = el.getAttribute('data-id');
+
+  switch(act){
+    case 'view': setView(el.getAttribute('data-view')); break;
+    case 'tag':
+    case 'lib-tag': {
+      var tt = el.getAttribute('data-tag') || '';
+      if(!tt) ui.tags = [];
+      else {
+        var ti = ui.tags.indexOf(tt);
+        if(ti >= 0) ui.tags.splice(ti, 1); else ui.tags.push(tt);
+      }
+      if(ui.view === 'review') rebuildQueue();
+      render();
+      break;
+    }
+    case 'group': ui.group = el.getAttribute('data-group') || 'all'; render(); break;
+    case 'clear-tag':
+      ui.tags = [];
+      if(ui.view === 'review') rebuildQueue();
+      render();
+      break;
+    case 'reveal': ui.revealed = true; render(); break;
+    case 'grade': {
+      var card = findCard(ui.queue[ui.qi]);
+      if(!card || !ui.revealed) return;
+      var grade = el.getAttribute('data-grade');
+      applyGrade(card, grade);
+      ui.session.done++;
+      if(grade === 'again'){ ui.session.again++; ui.queue.push(card.id); }
+      save();
+      ui.qi++;
+      ui.revealed = false;
+      renderSidebar(); renderTop();
+      renderReview();
+      break;
+    }
+    case 'rebuild-queue':
+      ui.session = {done:0, again:0, start:Date.now()};
+      rebuildQueue(); render();
+      break;
+    case 'open': openDrawer(id); break;
+    case 'close-drawer': closeDrawer(); break;
+    case 'drawer-prev': drawerStep(-1); break;
+    case 'drawer-next': drawerStep(1); break;
+    case 'drawer-edit': if(ui.drawerId) openEditor(ui.drawerId); break;
+    case 'edit': e.stopPropagation(); openEditor(id); break;
+    case 'new-card': openEditor(null); break;
+    case 'save-card': saveCardFromModal(id || null); break;
+    case 'modal-close': closeModal(); break;
+    case 'del': {
+      var c2 = findCard(id);
+      if(!c2) return;
+      if(!confirm('删除这张卡片？\n\n' + plain(c2.front, 60))) return;
+      state.cards = state.cards.filter(function(x){ return x.id !== id; });
+      delete ui.selected[id];
+      save();
+      closeModal();
+      if(ui.drawerId === id) closeDrawer();
+      render();
+      toast('已删除');
+      break;
+    }
+    case 'toggle-suspend': {
+      var c3 = findCard(id);
+      if(!c3) return;
+      c3.suspended = !c3.suspended;
+      save(); render(); toast(c3.suspended ? '已暂停' : '已恢复');
+      break;
+    }
+    case 'toggle-select': {
+      e.stopPropagation();
+      if(ui.selected[id]) delete ui.selected[id]; else ui.selected[id] = 1;
+      fillGrid();
+      break;
+    }
+    case 'select-mode': ui.selecting = !ui.selecting; render(); break;
+    case 'select-all': filteredCards().forEach(function(c){ ui.selected[c.id] = 1; }); fillGrid(); break;
+    case 'select-none': ui.selected = {}; fillGrid(); break;
+    case 'export-selected':
+      if(!Object.keys(ui.selected).length){ toast('还没有选中卡片'); return; }
+      ui.exportScope = 'selected'; setView('export');
+      break;
+    case 'seed': seed(); break;
+    case 'parse-import': {
+      var ta = $('#importText');
+      ui.importText = ta ? ta.value : ui.importText;
+      ui.importPreview = parseImport(ui.importText);
+      renderImportPreview();
+      if(ui.importPreview.cards.length) toast('解析到 ' + ui.importPreview.cards.length + ' 张卡片');
+      else toast('没有解析到卡片，检查一下格式');
+      break;
+    }
+    case 'clear-import':
+      ui.importText = ''; ui.importPreview = null;
+      var t2 = $('#importText'); if(t2) t2.value = '';
+      renderImportPreview();
+      break;
+    case 'do-import': doImport(); break;
+    case 'scope':
+      ui.exportScope = el.getAttribute('data-scope');
+      if(ui.exportScope === 'tag') ui.tags.forEach(function(t){ ui.exportTags[t] = true; });
+      render();
+      break;
+    case 'scope-quick':
+      ui.exportScope = 'tag';
+      ui.tags.forEach(function(t){ ui.exportTags[t] = true; });
+      render();
+      break;
+    case 'export-tag': {
+      var t = el.getAttribute('data-tag');
+      if(ui.exportTags[t]) delete ui.exportTags[t]; else ui.exportTags[t] = true;
+      render();
+      break;
+    }
+    case 'format': ui.exportFormat = el.getAttribute('data-format'); render(); break;
+    case 'do-export': doExport(); break;
+    case 'reset-progress': {
+      if(!confirm('把当前筛选范围内所有卡片的复习进度重置为「未开始」？')) return;
+      filteredCards().forEach(function(c){
+        c.sched = {stage:0, due:Date.now(), last:null, reps:0, lapses:0, history:[]};
+      });
+      save(); render(); toast('已重置');
+      break;
+    }
+  }
+});
+
+document.addEventListener('keydown', function(e){
+  var tag = (e.target.tagName || '').toLowerCase();
+  var typing = tag === 'input' || tag === 'textarea' || tag === 'select';
+
+  if(e.key === 'Escape'){
+    if(!$('#modal').hidden) return closeModal();
+    if(ui.drawerId) return closeDrawer();
+  }
+  if(typing) return;
+
+  if(ui.view === 'review' && !ui.drawerId && $('#modal').hidden){
+    if(e.key === ' ' || e.key === 'Enter'){
+      e.preventDefault();
+      if(!ui.revealed){ ui.revealed = true; render(); }
+      return;
+    }
+    if(ui.revealed && '1234'.indexOf(e.key) >= 0){
+      e.preventDefault();
+      var key2 = GRADES[parseInt(e.key,10)-1].key;
+      var card = findCard(ui.queue[ui.qi]);
+      if(!card) return;
+      applyGrade(card, key2);
+      ui.session.done++;
+      if(key2 === 'again'){ ui.session.again++; ui.queue.push(card.id); }
+      save();
+      ui.qi++; ui.revealed = false;
+      renderSidebar(); renderTop(); renderReview();
+    }
+  }
+  if(ui.drawerId && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')){
+    drawerStep(e.key === 'ArrowRight' ? 1 : -1);
+  }
+});
+
+window.addEventListener('hashchange', function(){
+  var v = location.hash.replace('#','');
+  if(['review','library','import','export','stats'].indexOf(v) >= 0 && v !== ui.view) setView(v);
+});
+
+/* ================= 示例数据 ================= */
+function seed(quiet){
+  if(!quiet && state.cards.length && !confirm('当前已有 ' + state.cards.length + ' 张卡片，仍要追加示例吗？')) return;
+  var now = Date.now();
+  var demo = [
+    {front:'什么是艾宾浩斯遗忘曲线？', back:'德国心理学家艾宾浩斯用无意义音节自测得到的遗忘速率：20 分钟忘掉约 42%，1 天约 66%，6 天后趋于平缓。\n\n启示：**在遗忘发生前复习**，成本最低。', note:'## 复习节奏\n\n- 第 1 次：学完 5 分钟内\n- 第 2 次：30 分钟\n- 第 3 次：12 小时\n- 之后按 1、2、4、7、15、30 天展开\n\n> 间隔重复的本质，是把「快要忘」的时机变成复习的时机。', manualTags:['记忆','学习']},
+    {front:'间隔重复为什么要「先难后易」地拉长间隔？', back:'每次成功回忆都会提高记忆强度，因此下一次可以间隔更久；间隔拉长带来的**适度困难**（desirable difficulty）反而加深编码。', manualTags:['记忆']},
+    {front:'`localStorage`、`IndexedDB`、Cookie 各自适合什么？', back:'- **localStorage**：同步、5MB 左右、只存字符串\n- **IndexedDB**：异步、容量大、可存结构化数据\n- **Cookie**：会随请求发送给服务器，4KB 左右，适合会话标识', manualTags:['JS','浏览器']},
+    {front:'闭包是什么？', back:'函数与其**词法作用域**的组合。内部函数即使在外部函数返回后，仍能访问外部作用域的变量。', manualTags:['JS','基础']},
+    {front:'SM-2 算法里的 EF（易度因子）怎么更新？', back:'`EF\' = EF + (0.1 - (5-q)*(0.08 + (5-q)*0.02))`，其中 q 是 0–5 的回忆质量评分，EF 下限为 1.3。\n\n```\nEF = max(1.3, EF + (0.1 - (5-q)*(0.08+(5-q)*0.02)))\n```', manualTags:['算法','记忆']},
+    {front:'MDN 上 Fetch 的用法在哪里看？', back:'打开右侧抽屉里的链接，对照 `Response.json()` 与 `AbortController` 的示例。', noteUrl:'https://developer.mozilla.org/zh-CN/docs/Web/API/Fetch_API/Using_Fetch', manualTags:['JS','资料']}
+  ];
+  demo.forEach(function(d){ state.cards.unshift(makeCard(d)); });
+  save();
+  render();
+  if(!quiet) toast('已载入 ' + demo.length + ' 张示例卡片');
+}
+
+/* ================= 启动 ================= */
+var initial = location.hash.replace('#','');
+if(['review','library','import','export','stats'].indexOf(initial) >= 0) ui.view = initial;
+load();
+if(/[?&]demo=1/.test(location.search) && !state.cards.length) seed(true);
+ui.queue = dueCards().map(function(c){ return c.id; });
+ui.session = {done:0, again:0, start:Date.now()};
+render();
+if(!storageOk) toast('当前环境无法写入 localStorage，数据不会被保存');
+
+})();
+</script>
+</body>
+</html>

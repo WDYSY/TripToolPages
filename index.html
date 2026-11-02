@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TripToolPages · 工具索引</title>
+<meta name="description" content="打开即用的小工具集合：JSON 对比、待办看板、Anki 卡片、URL 正则生成、Mock 响应生成…全部纯前端，数据留在本地。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%B0%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f4f5f7; --panel:#fff; --line:#e5e7eb; --line-strong:#d5d8de;
+  --text:#1b1f24; --text-2:#5a6169; --muted:#8b929c;
+  --accent:#3568f0; --accent-2:#eaf0ff;
+  --shadow:0 1px 2px rgba(16,24,40,.04),0 10px 28px rgba(16,24,40,.07);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#14161a; --panel:#1b1e24; --line:#272b33; --line-strong:#333944;
+    --text:#e6e8ec; --text-2:#a6adb8; --muted:#79818d;
+    --accent:#5b8cff; --accent-2:#1d2b47;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 28px rgba(0,0,0,.35);
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer}
+::selection{background:var(--accent-2)}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+
+/* 头部 */
+.hero{padding:38px 0 22px}
+.brand{display:flex;align-items:center;gap:14px}
+.logo{
+  width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:23px;
+  background:linear-gradient(135deg,#3568f0,#5b8cff);box-shadow:0 6px 18px rgba(53,104,240,.28);
+}
+.brand h1{margin:0;font-size:21px;letter-spacing:.2px;font-weight:680}
+.brand .sub{margin:2px 0 0;font-size:12.5px;color:var(--muted)}
+.brand .gh{
+  margin-left:auto;font-size:12.5px;color:var(--text-2);border:1px solid var(--line-strong);
+  background:var(--panel);padding:7px 13px;border-radius:9px;transition:.15s;white-space:nowrap;
+}
+.brand .gh:hover{border-color:var(--accent);color:var(--accent)}
+
+.controls{display:flex;align-items:center;gap:12px;margin-top:22px}
+.controls input{
+  flex:1;min-width:0;padding:11px 14px;border:1px solid var(--line-strong);border-radius:11px;
+  background:var(--panel);outline:none;transition:.15s;font-size:13.5px;
+}
+.controls input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-2)}
+.controls .count{font-size:12.5px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.tags button{
+  border:1px solid var(--line-strong);background:var(--panel);border-radius:999px;
+  padding:4px 12px;font-size:12px;color:var(--text-2);transition:.15s;
+}
+.tags button:hover{border-color:var(--muted);color:var(--text)}
+.tags button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+
+/* 卡片 */
+main{padding-bottom:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.card{
+  display:flex;flex-direction:column;gap:8px;background:var(--panel);border:1px solid var(--line);
+  border-radius:15px;padding:17px 18px 15px;transition:.16s;position:relative;overflow:hidden;
+}
+.card:hover{border-color:var(--line-strong);box-shadow:var(--shadow);transform:translateY(-2px)}
+.card:after{
+  content:"打开 ↗";position:absolute;top:15px;right:16px;font-size:11.5px;color:var(--accent);
+  opacity:0;transition:.16s;
+}
+.card:hover:after{opacity:1}
+.card .icon{font-size:19px;line-height:1}
+.card h2{margin:0;font-size:14.5px;font-weight:650;letter-spacing:.1px;padding-right:52px}
+.card p{margin:0;font-size:12.5px;line-height:1.65;color:var(--text-2);min-height:38px}
+.card .meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:auto;padding-top:6px}
+.chip{
+  font-size:11px;padding:2px 8px;border-radius:999px;background:var(--accent-2);color:var(--accent);
+  font-weight:600;white-space:nowrap;
+}
+.card .date{margin-left:auto;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.empty{text-align:center;color:var(--muted);padding:60px 0;font-size:13px}
+
+/* 底部 */
+footer{margin-top:26px;padding-bottom:44px;border-top:1px solid var(--line)}
+footer details{margin-top:18px;font-size:12.5px;color:var(--text-2)}
+footer summary{cursor:pointer;color:var(--muted);outline:none}
+footer summary:hover{color:var(--accent)}
+footer p{margin:10px 0 0}
+footer code{
+  background:rgba(127,127,127,.14);padding:1px 5px;border-radius:5px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;
+}
+footer pre{
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;
+  overflow:auto;margin:8px 0 0;
+}
+footer pre code{background:none;padding:0;line-height:1.7}
+footer .foot{font-size:12px;color:var(--muted);margin-top:22px}
+footer .foot a{color:var(--accent)}
+@media (max-width:640px){
+  .wrap{padding:0 16px}
+  .hero{padding:26px 0 16px}
+  .brand .gh{display:none}
+  .grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brand">
+      <div class="logo">🧰</div>
+      <div>
+        <h1>TripToolPages</h1>
+        <p class="sub">打开即用的小工具集合 · 纯前端 · 数据都留在本地</p>
+      </div>
+      <a class="gh" href="https://github.com/WDYSY/TripToolPages" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+    <div class="controls">
+      <input id="q" type="search" placeholder="搜索工具名称、用途或标签…（按 / 聚焦）" autocomplete="off">
+      <span class="count" id="count"></span>
+    </div>
+    <div class="tags" id="tagBar"></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" hidden>没有匹配的工具，换个关键词试试</div>
+</main>
+
+<footer class="wrap">
+  <details>
+    <summary>新增了一个页面，怎么加到索引里？</summary>
+    <p>在本文件底部的 <code>PAGES</code> 数组里加一条（放在最前面就会排在最上）：</p>
+    <pre><code>{ file: 'xxx.html', title: '页面标题', desc: '一句话说明这个工具干什么',
+  tags: ['分类'], icon: '🧩', date: '2026-11-02' },</code></pre>
+    <p>标签会自动出现在上方的筛选条里，不需要另外维护。</p>
+  </details>
+  <p class="foot">发布地址：<a href="https://wdysy.github.io/TripToolPages/" target="_blank" rel="noopener">wdysy.github.io/TripToolPages</a> · 新增页面时记得把 <code>PAGES</code> 一起提交</p>
+</footer>
+
+<script>
+/* ============================================================
+   页面清单：新增页面只要在这里加一条即可，其余全部自动渲染
+   file  必填，本目录下的文件名
+   title 必填，卡片标题
+   desc  一句话说明
+   tags  分类标签，会自动汇总到顶部筛选条
+   icon  一个 emoji
+   date  更新日期 YYYY-MM-DD
+   ============================================================ */
+var PAGES = [
+  {
+    file: 'anki.html',
+    title: 'Anki 卡片记忆',
+    desc: '批量导入 CSV / Anki .apkg·.colpkg，#标签分类分组，侧边抽屉读笔记，按艾宾浩斯曲线安排每日复习，可导出 Markdown / JSON / CSV 存档。',
+    tags: ['学习', '记忆卡'],
+    icon: '🃏',
+    date: '2026-11-02'
+  },
+  {
+    file: 'json-diff-tool.html',
+    title: 'JSON Diff 对比工具',
+    desc: '选文件或直接粘贴两段 JSON，按字段名排序后逐点对比，新增 / 删除 / 修改 / 类型变更分色标注，可上下切换差异。',
+    tags: ['JSON', '调试'],
+    icon: '🔍',
+    date: '2026-10-30'
+  },
+  {
+    file: 'todo.html',
+    title: 'Todo Board 待办看板',
+    desc: '看板 / 列表 / 日程三种视图，支持分类、链接、截止日期，粘贴多行文本批量添加，可导入导出。',
+    tags: ['效率', '待办'],
+    icon: '📋',
+    date: '2026-10-15'
+  },
+  {
+    file: 'url生成tabrenamer正则匹配.html',
+    title: 'URL 正则生成器',
+    desc: '输入 URL 后点选需要的片段，自动推荐正则模板，生成 Tab Renamer 规则并一键复制。',
+    tags: ['正则', '效率'],
+    icon: '🔗',
+    date: '2026-09-10'
+  },
+  {
+    file: 'response-gen-white.html',
+    title: '契约 Mock 响应生成器',
+    desc: '给一段契约 JSON，批量生成 Mock 响应；自动识别 Request / Response，修正 ResponseStatus，可指定生成数量与错误信息。',
+    tags: ['Mock', '契约'],
+    icon: '🚀',
+    date: '2026-07-14'
+  },
+  {
+    file: 'devUrl.html',
+    title: '环境切换书签配置工具',
+    desc: '配置域名与端口的替换关系，一键生成书签代码；在浏览器里点一下书签就能把当前页面切到对应环境。',
+    tags: ['效率', '书签'],
+    icon: '🔄',
+    date: '2026-02-26'
+  },
+  {
+    file: 'trans_tools.html',
+    title: 'TransKey 工具箱',
+    desc: '从 JSON 里提取 transKey 生成问题 Key 表格，再与翻译汇总表比对，导出未翻译与 Locale 缺失的条目。',
+    tags: ['国际化', 'Excel'],
+    icon: '🌐',
+    date: '2026-02-26'
+  }
+];
+
+(function(){
+  var state = { q: '', tag: '' };
+
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function fmtDate(d){ return String(d || '').replace(/-/g, '.'); }
+  function allTags(){
+    var map = {};
+    PAGES.forEach(function(p){ (p.tags || []).forEach(function(t){ map[t] = (map[t] || 0) + 1; }); });
+    return Object.keys(map).sort(function(a, b){ return map[b] - map[a] || a.localeCompare(b); });
+  }
+  function match(p){
+    if(state.tag && (p.tags || []).indexOf(state.tag) < 0) return false;
+    if(!state.q) return true;
+    var hay = [p.title, p.desc, p.file].concat(p.tags || []).join(' ').toLowerCase();
+    return hay.indexOf(state.q) >= 0;
+  }
+
+  function renderTags(){
+    var bar = document.getElementById('tagBar');
+    bar.innerHTML = '<button class="' + (state.tag ? '' : 'on') + '" data-tag="">全部 ' + PAGES.length + '</button>' +
+      allTags().map(function(t){
+        return '<button class="' + (state.tag === t ? 'on' : '') + '" data-tag="' + esc(t) + '">' + esc(t) + '</button>';
+      }).join('');
+  }
+
+  function render(){
+    var list = PAGES.filter(match).sort(function(a, b){
+      return String(b.date || '').localeCompare(String(a.date || ''));
+    });
+    renderTags();
+    document.getElementById('count').textContent = list.length + ' / ' + PAGES.length + ' 个工具';
+    document.getElementById('empty').hidden = list.length > 0;
+    document.getElementById('grid').innerHTML = list.map(function(p){
+      var tags = (p.tags || []).map(function(t){ return '<span class="chip">' + esc(t) + '</span>'; }).join('');
+      return '<a class="card" href="' + encodeURI(p.file) + '">' +
+        '<div class="icon">' + esc(p.icon || '🧩') + '</div>' +
+        '<h2>' + esc(p.title) + '</h2>' +
+        '<p>' + esc(p.desc) + '</p>' +
+        '<div class="meta">' + tags + '<span class="date">' + fmtDate(p.date) + '</span></div>' +
+      '</a>';
+    }).join('');
+  }
+
+  document.getElementById('tagBar').addEventListener('click', function(e){
+    var btn = e.target.closest('button[data-tag]');
+    if(!btn) return;
+    state.tag = btn.getAttribute('data-tag');
+    render();
+  });
+  document.getElementById('q').addEventListener('input', function(){
+    state.q = this.value.trim().toLowerCase();
+    render();
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === '/' && document.activeElement !== document.getElementById('q')){
+      e.preventDefault();
+      document.getElementById('q').focus();
+    }else if(e.key === 'Escape' && document.activeElement === document.getElementById('q')){
+      document.getElementById('q').value = '';
+      state.q = '';
+      render();
+      document.getElementById('q').blur();
+    }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
