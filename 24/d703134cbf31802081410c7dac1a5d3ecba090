@@ -1,0 +1,32 @@
+anki.html
+  s_93d5b92ca9aeae::t_7eb648b905b2e9 2021
+  s_93d5b92ca9aeae::t_42f373f7d9c32e 1016-1025,1028-1037,1039
+  s_93d5b92ca9aeae::t_91032da3f8e3a8 128-134
+  s_93d5b92ca9aeae::t_57052a958e7374 2249-2255
+json-diff-tool.html
+  s_4625e9f5910b9b::t_5687041f214e63 584,747-752,754-755,757-761
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.51-trip",
+  "base_commit_sha": "24d703134cbf31802081410c7dac1a5d3ecba090",
+  "prompts": {},
+  "sessions": {
+    "s_4625e9f5910b9b": {
+      "agent_id": {
+        "tool": "chengxiaobang",
+        "id": "s_k1pmu4pclq8v",
+        "model": "glm-5.3"
+      },
+      "human_author": "Wang Yan <wangyan@trip.com>"
+    },
+    "s_93d5b92ca9aeae": {
+      "agent_id": {
+        "tool": "chengxiaobang",
+        "id": "s_96w7h5qm8g7y",
+        "model": "auto(free)"
+      },
+      "human_author": "Wang Yan <wangyan@trip.com>"
+    }
+  }
+}
