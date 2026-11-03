@@ -125,6 +125,13 @@ textarea.field{resize:vertical;line-height:1.7;font-family:ui-monospace,SFMono-R
 .chip.gray{background:rgba(127,127,127,.12);color:var(--text-2)}
 .chip.red{background:rgba(224,92,75,.12);color:var(--again)}
 .chip.green{background:rgba(44,156,109,.13);color:var(--good)}
+.chip.tag-chip{padding-right:3px;gap:2px}
+.chip .tag-x{
+  border:0;background:none;color:inherit;opacity:.45;font-size:13px;line-height:1;
+  width:15px;height:15px;border-radius:50%;padding:0;display:grid;place-items:center;cursor:pointer;
+  transition:.12s;
+}
+.chip .tag-x:hover{opacity:1;background:rgba(224,92,75,.18);color:var(--again)}
 .badge-due{font-size:11px;color:var(--hard);font-weight:600}
 .badge-due.now{color:var(--again)}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
@@ -1006,8 +1013,30 @@ function addTagToCard(id, raw){
   render();
   toast('已加上 #' + tag);
 }
+function tagChipHtml(id, t){
+  return '<span class="chip tag-chip">#' + esc(t) +
+    '<button class="tag-x" data-act="del-tag" data-id="' + id + '" data-tag="' + esc(t) + '" title="移除标签">×</button>' +
+  '</span>';
+}
+function removeTagFromCard(id, tag){
+  var c = findCard(id);
+  if(!c) return;
+  c.manualTags = (c.manualTags || []).filter(function(t){ return t !== tag; });
+  // 正文里的 #标签 也得去掉，否则重新识别时又会冒出来
+  var safe = String(tag).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  var pat = new RegExp('#' + safe + '(?![A-Za-z0-9_\\u4e00-\\u9fa5])', 'g');
+  ['front', 'back', 'note'].forEach(function(k){
+    if(!c[k]) return;
+    c[k] = c[k].replace(pat, '').replace(/[ \t]{2,}/g, ' ').replace(/[ \t]+$/gm, '').trim();
+  });
+  c.tags = computeTags(c);
+  c.updated = Date.now();
+  save();
+  render();
+  toast((c.tags || []).indexOf(tag) >= 0 ? '正文里还写着 #' + tag + '，没能移除' : '已移除 #' + tag);
+}
 function tileHtml(c){
-  var tagHtml = (c.tags||[]).slice(0,3).map(function(t){ return '<span class="chip">#' + esc(t) + '</span>'; }).join('');
+  var tagHtml = (c.tags||[]).slice(0,3).map(function(t){ return tagChipHtml(c.id, t); }).join('');
   if((c.tags||[]).length > 3) tagHtml += '<span class="chip gray">+' + (c.tags.length-3) + '</span>';
   var dl = dueLabel(c);
   return '<article class="tile' + (ui.selected[c.id] ? ' sel' : '') + (c.suspended ? ' suspended' : '') + '" data-act="open" data-id="' + c.id + '">' +
@@ -1989,7 +2018,7 @@ function renderDrawer(){
   $('#drawerBody').innerHTML =
     '<h2 class="drawer-title md">' + md(card.front) + '</h2>' +
     '<div class="drawer-meta">' +
-      (card.tags||[]).map(function(t){ return '<span class="chip">#' + esc(t) + '</span>'; }).join('') +
+      (card.tags||[]).map(function(t){ return tagChipHtml(card.id, t); }).join('') +
       '<span class="chip gray">创建 ' + fmtDate(card.created) + '</span>' +
       '<span class="chip ' + (isDue(card) ? 'red' : 'gray') + '">' + (isDue(card) ? '待复习' : '下次 ' + fmtDT(card.sched.due)) + '</span>' +
     '</div>' +
@@ -2217,6 +2246,13 @@ document.addEventListener('click', function(e){
       break;
     case 'open': openDrawer(id); break;
     case 'tile-tag': break;   // 下拉自己处理 change，别顺手把抽屉打开
+    case 'del-tag': {
+      e.stopPropagation();
+      var dtTag = el.getAttribute('data-tag');
+      if(!confirm('确认移除标签 #' + dtTag + ' 吗？')) return;
+      removeTagFromCard(id, dtTag);
+      break;
+    }
     case 'close-drawer': closeDrawer(); break;
     case 'drawer-prev': drawerStep(-1); break;
     case 'drawer-next': drawerStep(1); break;

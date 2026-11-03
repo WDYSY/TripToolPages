@@ -581,6 +581,7 @@
     if (!total) return;
     idx = ((idx % total) + total) % total;
     currentIndex = idx;
+    scrollMaster = null; // 程序化定位前解除滚动联动主控，避免左右互相按比例拉扯
 
     document.querySelectorAll('.line.current').forEach(function(el){ el.classList.remove('current'); });
     document.querySelectorAll('.diff-row.active').forEach(function(el){ el.classList.remove('active'); });
@@ -743,15 +744,21 @@
     else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft'){ selectDiff(currentIndex - 1); e.preventDefault(); }
   });
 
-  // 双向同步滚动（按比例），便于左右对照
-  var syncing = false;
+  // 双向同步滚动（按比例），便于左右对照。
+  // 注意：元素的 scroll 事件是异步派发的（要等下一帧），同步置位再复位的标志位拦不住“回声”，
+  // 左右会互相触发；且 scrollTop 只能按 0.5px 截断存储，每回合丢一点小数，
+  // 两面板就会不停向上爬（表现为跳到差异点后一直慢慢往上滚）。
+  // 改成主从模式：只有用户直接滚动（滚轮 / 拖滚动条）的那一侧才作为主控带动另一侧。
+  var scrollMaster = null;
   function linkScroll(a, b){
+    a.addEventListener('wheel', function(){ scrollMaster = a; }, { passive: true });
+    a.addEventListener('pointerdown', function(){ scrollMaster = a; });
     a.addEventListener('scroll', function(){
-      if (syncing) return;
-      syncing = true;
-      var ratio = a.scrollTop / ((a.scrollHeight - a.clientHeight) || 1);
-      b.scrollTop = ratio * ((b.scrollHeight - b.clientHeight) || 1);
-      syncing = false;
+      if (scrollMaster !== a) return;
+      var maxA = a.scrollHeight - a.clientHeight;
+      var maxB = b.scrollHeight - b.clientHeight;
+      if (maxA <= 0 || maxB <= 0) return;
+      b.scrollTop = Math.round(a.scrollTop / maxA * maxB);
     });
   }
   linkScroll(bodyLeftEl, bodyRightEl);
