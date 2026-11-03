@@ -105,6 +105,7 @@
   .prev-old{ color:var(--c-removed-text); } .prev-new{ color:var(--c-added-text); }
   .prev-added{ color:var(--c-added-text); } .prev-removed{ color:var(--c-removed-text); }
   .diff-empty{ padding:14px; text-align:center; color:var(--c-added-text); font-size:13px; }
+  .diff-more{ padding:8px 14px; font-size:12px; color:#8a919c; background:#fafbfc; }
 
   .panels{ display:flex; }
   .panel{ flex:1 1 50%; min-width:0; border-right:1px solid #d9dee3; }
@@ -112,11 +113,11 @@
   .panel-head{ padding:7px 12px; font-size:12.5px; font-weight:600; background:#fafbfc; border-bottom:1px solid #d9dee3; color:#444c56; }
   .panel-body{
     max-height:58vh; overflow:auto; font:12.5px/1.6 "SF Mono", Menlo, Consolas, monospace;
-    counter-reset: ln; padding:4px 0;
+    padding:4px 0; position:relative;
   }
+  .vwin{ position:absolute; left:0; right:0; top:0; }
   .line{ display:flex; align-items:flex-start; }
   .line .gutter{ flex:0 0 42px; text-align:right; margin-right:10px; color:#9aa5b1; user-select:none; padding-right:4px; }
-  .line .gutter::before{ counter-increment: ln; content: counter(ln); }
   .line .code{ flex:1 1 auto; white-space:pre; padding-right:12px; word-break:break-all; }
   .line.diff-added{ background:var(--c-added-bg); box-shadow: inset 3px 0 0 var(--c-added-border); }
   .line.diff-removed{ background:var(--c-removed-bg); box-shadow: inset 3px 0 0 var(--c-removed-border); }
@@ -185,7 +186,7 @@
     <button class="btn-primary" id="btn-compare">对比 Diff</button>
     <button class="btn-sm" id="btn-swap">⇄ 交换左右</button>
     <button class="btn-sm" id="btn-clear-all">清空全部</button>
-    <span class="hint">内容变化会自动重新对比；对象字段按名称自动排序，数组保持原始顺序以保证按下标比较准确。</span>
+    <span class="hint">内容变化会自动重新对比；对象字段按名称自动排序，数组保持原始顺序以保证按下标比较准确。超大文本自动降级（输入框不再着色、结果面板按需渲染）以保证流畅。</span>
     <span class="error" id="error-box" hidden></span>
   </section>
 
@@ -208,11 +209,11 @@
     <div class="panels">
       <div class="panel" id="panel-left">
         <div class="panel-head">原始 JSON（已排序）</div>
-        <div class="panel-body" id="body-left"></div>
+        <div class="panel-body" id="body-left"><div class="vspace" id="vspace-left"></div><div class="vwin" id="vwin-left"></div></div>
       </div>
       <div class="panel" id="panel-right">
         <div class="panel-head">对比 JSON（已排序）</div>
-        <div class="panel-body" id="body-right"></div>
+        <div class="panel-body" id="body-right"><div class="vspace" id="vspace-right"></div><div class="vwin" id="vwin-right"></div></div>
       </div>
     </div>
     <div class="legend">
@@ -248,6 +249,10 @@
   var diffListEl = document.getElementById('diff-list');
   var bodyLeftEl = document.getElementById('body-left');
   var bodyRightEl = document.getElementById('body-right');
+  var vspaceLeftEl = document.getElementById('vspace-left');
+  var vspaceRightEl = document.getElementById('vspace-right');
+  var vwinLeftEl = document.getElementById('vwin-left');
+  var vwinRightEl = document.getElementById('vwin-right');
   var btnPrev = document.getElementById('btn-prev');
   var btnNext = document.getElementById('btn-next');
   var navCounter = document.getElementById('nav-counter');
@@ -260,6 +265,14 @@
   var leftPosMap = null, rightPosMap = null;
 
   var KIND_LABEL = { added:'新增', removed:'删除', changed:'修改', type:'类型变更' };
+
+  // 大文本性能阈值/常量：超过阈值后输入框关闭语法高亮（改纯文本），结果面板只渲染可视行
+  var HIGHLIGHT_LIMIT = 150000;
+  var LIST_CAP = 2000;   // 差异列表最多渲染行数，超出部分仍可用 ↑↓ / 按钮导航
+  var LINE_H = 20;       // 结果面板单行高度（12.5px * 1.6 行高），首帧实测校准
+  var PAD = 4;           // .panel-body 上下 padding
+  var currentDiffId = null;
+  var COLL = new Intl.Collator('zh-Hans-CN', { numeric:true });
 
   // ---------- helpers ----------
   function escapeHtml(s){
@@ -289,12 +302,29 @@
     return html;
   }
   function refreshHighlight(textarea, pre){
-    pre.innerHTML = highlightJson(textarea.value);
+    var v = textarea.value;
+    if (v.length > HIGHLIGHT_LIMIT){
+      // 超大文本：跳过逐 token 高亮（对几 MB 文本每次输入都全量分词会卡死页面）
+      textarea._big = true;
+      pre.textContent = v;
+      if (/\n$/.test(v)) pre.append('\n');
+    } else {
+      textarea._big = false;
+      pre.innerHTML = highlightJson(v);
+    }
     pre.scrollTop = textarea.scrollTop;
     pre.scrollLeft = textarea.scrollLeft;
   }
   function wireEditorHighlight(textarea, pre){
-    textarea.addEventListener('input', function(){ refreshHighlight(textarea, pre); });
+    textarea.addEventListener('input', function(){
+      if (textarea.value.length > HIGHLIGHT_LIMIT){
+        // 大文本合并刷新，避免每次输入都整段重建
+        if (textarea._bigTimer) return;
+        textarea._bigTimer = setTimeout(function(){ textarea._bigTimer = null; refreshHighlight(textarea, pre); }, 150);
+      } else {
+        refreshHighlight(textarea, pre);
+      }
+    });
     textarea.addEventListener('scroll', function(){ pre.scrollTop = textarea.scrollTop; pre.scrollLeft = textarea.scrollLeft; });
     refreshHighlight(textarea, pre);
   }
@@ -308,7 +338,9 @@
   function buildPositionMap(text){
     var map = new Map();
     var i = 0, n = text.length;
-    function skipWs(){ while (i < n && /\s/.test(text[i])) i++; }
+    // 用字符码比较代替逐字符正则，几 MB 文本能省掉数百万次正则调用
+    function isWs(c){ return c === 32 || c === 9 || c === 10 || c === 13 || c === 0xa0 || c === 0xfeff; }
+    function skipWs(){ while (i < n && isWs(text.charCodeAt(i))) i++; }
     function parseString(){
       var start = i; i++;
       while (i < n){
@@ -358,7 +390,11 @@
       } else if (ch === '"'){
         parseString();
       } else {
-        while (i < n && !/[,\]\}\s]/.test(text[i])) i++;
+        while (i < n){
+          var c = text.charCodeAt(i);
+          if (c === 44 || c === 93 || c === 125 || isWs(c)) break;
+          i++;
+        }
       }
     }
     skipWs();
@@ -384,14 +420,26 @@
 
   function renderEditorRange(textarea, pre, range){
     var text = textarea.value;
-    var html = tokenizeJson(text.slice(0, range.start)) +
-      '<span class="editor-current-range">' + tokenizeJson(text.slice(range.start, range.end)) + '</span>' +
-      tokenizeJson(text.slice(range.end));
-    if (/\n$/.test(text)) html += '\n';
-    pre.innerHTML = html;
-    var marker = pre.querySelector('.editor-current-range');
-    if (marker){
-      var target = Math.max(0, marker.offsetTop - pre.clientHeight / 2 + marker.offsetHeight / 2);
+    var markEl;
+    if (textarea._big){
+      // 超大文本：不做语法分词，用三个文本节点拼出高亮区间，只付一次纯文本布局成本
+      pre.textContent = '';
+      pre.append(document.createTextNode(text.slice(0, range.start)));
+      markEl = document.createElement('span');
+      markEl.className = 'editor-current-range';
+      markEl.textContent = text.slice(range.start, range.end);
+      pre.append(markEl, document.createTextNode(text.slice(range.end)));
+      if (/\n$/.test(text)) pre.append('\n');
+    } else {
+      var html = tokenizeJson(text.slice(0, range.start)) +
+        '<span class="editor-current-range">' + tokenizeJson(text.slice(range.start, range.end)) + '</span>' +
+        tokenizeJson(text.slice(range.end));
+      if (/\n$/.test(text)) html += '\n';
+      pre.innerHTML = html;
+      markEl = pre.querySelector('.editor-current-range');
+    }
+    if (markEl){
+      var target = Math.max(0, markEl.offsetTop - pre.clientHeight / 2 + markEl.offsetHeight / 2);
       textarea.scrollTop = target;
       pre.scrollTop = target;
     }
@@ -413,7 +461,7 @@
     if (Array.isArray(v)) return v.map(sortDeep);
     if (v && typeof v === 'object'){
       var out = {};
-      Object.keys(v).sort(function(a,b){ return a.localeCompare(b, 'zh-Hans-CN', { numeric:true }); })
+      Object.keys(v).sort(function(a,b){ return COLL.compare(a, b); })
         .forEach(function(k){ out[k] = sortDeep(v[k]); });
       return out;
     }
@@ -464,7 +512,7 @@
     }
     if (lk === 'object'){
       var keys = Array.from(new Set(Object.keys(left).concat(Object.keys(right))))
-        .sort(function(a,b){ return a.localeCompare(b, 'zh-Hans-CN', { numeric:true }); });
+        .sort(function(a,b){ return COLL.compare(a, b); });
       keys.forEach(function(k){
         var childPath = path.concat('k:' + k);
         var hasL = Object.prototype.hasOwnProperty.call(left, k);
@@ -534,17 +582,70 @@
     }
   }
 
-  function lineHtml(l){
+  // ---------- 结果面板虚拟渲染：只渲染可视窗口附近的行，几万行也不卡 ----------
+  function makePanel(bodyEl, winEl, spaceEl){
+    return { body: bodyEl, win: winEl, space: spaceEl, lines: [], firstByDiff: new Map(), from: -1, to: 0 };
+  }
+  var panelLeft = makePanel(bodyLeftEl, vwinLeftEl, vspaceLeftEl);
+  var panelRight = makePanel(bodyRightEl, vwinRightEl, vspaceRightEl);
+
+  var WIN_BUF = 8;
+  var lineHChecked = false;
+
+  function lineHtmlAt(l, idx){
     var cls = ['line'];
     if (l.kind) cls.push('diff-' + l.kind);
+    if (currentDiffId != null && l.diffId === currentDiffId) cls.push('current');
     var attr = l.kind ? ' data-diffid="' + l.diffId + '"' : '';
-    return '<div class="' + cls.join(' ') + '"' + attr + '><span class="gutter"></span><span class="code" style="padding-left:' +
-      (l.depth * 18) + 'px">' + l.html + '</span></div>';
+    return '<div class="' + cls.join(' ') + '"' + attr + '><span class="gutter">' + (idx + 1) +
+      '</span><span class="code" style="padding-left:' + (l.depth * 18) + 'px">' + l.html + '</span></div>';
   }
 
-  function renderPanel(container, lines){
-    container.innerHTML = lines.map(lineHtml).join('');
+  function renderWindow(p){
+    var st = p.body.scrollTop;
+    var first = Math.max(0, Math.floor((st - PAD) / LINE_H) - WIN_BUF);
+    var count = Math.ceil(p.body.clientHeight / LINE_H) + WIN_BUF * 2;
+    var last = Math.min(p.lines.length, first + count);
+    if (first === p.from && last === p.to) return;
+    p.from = first; p.to = last;
+    var html = '';
+    for (var i = first; i < last; i++) html += lineHtmlAt(p.lines[i], i);
+    p.win.innerHTML = html;
+    p.win.style.transform = 'translateY(' + (PAD + first * LINE_H) + 'px)';
+    if (!lineHChecked && p.win.firstElementChild){
+      lineHChecked = true;
+      var h = p.win.firstElementChild.offsetHeight; // 校准行高，避免行数多时累计错位
+      if (h > 0 && h !== LINE_H){
+        LINE_H = h;
+        panelLeft.space.style.height = (panelLeft.lines.length * LINE_H) + 'px';
+        panelRight.space.style.height = (panelRight.lines.length * LINE_H) + 'px';
+        panelLeft.from = -1; panelRight.from = -1;
+        renderWindow(panelLeft); renderWindow(panelRight);
+      }
+    }
   }
+
+  function setPanelLines(p, lines){
+    p.lines = lines;
+    p.firstByDiff = new Map();
+    for (var i = 0; i < lines.length; i++){
+      if (lines[i].diffId != null && !p.firstByDiff.has(lines[i].diffId)) p.firstByDiff.set(lines[i].diffId, i);
+    }
+    p.from = -1; p.to = 0;
+    p.space.style.height = (lines.length * LINE_H) + 'px';
+    renderWindow(p);
+  }
+
+  function scrollPanelToLine(p, idx){
+    if (idx == null) return;
+    var target = PAD + idx * LINE_H + LINE_H / 2 - p.body.clientHeight / 2;
+    var max = p.body.scrollHeight - p.body.clientHeight;
+    p.body.scrollTop = Math.max(0, Math.min(target, max));
+  }
+
+  [panelLeft, panelRight].forEach(function(p){
+    p.body.addEventListener('scroll', function(){ renderWindow(p); });
+  });
 
   function describeJsonError(text, e){
     var m = /position (\d+)/.exec(e.message);
@@ -582,17 +683,14 @@
     idx = ((idx % total) + total) % total;
     currentIndex = idx;
     scrollMaster = null; // 程序化定位前解除滚动联动主控，避免左右互相按比例拉扯
-
-    document.querySelectorAll('.line.current').forEach(function(el){ el.classList.remove('current'); });
     document.querySelectorAll('.diff-row.active').forEach(function(el){ el.classList.remove('active'); });
 
     var d = currentDiffs[idx];
-    var leftEls = bodyLeftEl.querySelectorAll('[data-diffid="' + d.id + '"]');
-    var rightEls = bodyRightEl.querySelectorAll('[data-diffid="' + d.id + '"]');
-    leftEls.forEach(function(el){ el.classList.add('current'); });
-    rightEls.forEach(function(el){ el.classList.add('current'); });
-    if (leftEls[0]) scrollElementIntoContainer(bodyLeftEl, leftEls[0]);
-    if (rightEls[0]) scrollElementIntoContainer(bodyRightEl, rightEls[0]);
+    currentDiffId = d.id;
+    panelLeft.from = -1; panelRight.from = -1; // 强制重渲染窗口，给可视行补 .current
+    scrollPanelToLine(panelLeft, panelLeft.firstByDiff.get(d.id));
+    scrollPanelToLine(panelRight, panelRight.firstByDiff.get(d.id));
+    renderWindow(panelLeft); renderWindow(panelRight);
 
     syncEditorToDiff(d.path, inputLeft, highlightLeft, leftPosMap);
     syncEditorToDiff(d.path, inputRight, highlightRight, rightPosMap);
@@ -610,16 +708,22 @@
     if (!diffs.length){
       diffListEl.innerHTML = '<div class="diff-empty">✅ 两个 JSON 完全一致，没有发现不同</div>';
     } else {
-      diffListEl.innerHTML = diffs.map(function(d, i){
+      // 差异可能上万条，只渲染前 LIST_CAP 行，避免一次性建几万个 DOM 节点（点击事件已改为列表级委托）
+      var cap = Math.min(diffs.length, LIST_CAP);
+      var html = '';
+      for (var i = 0; i < cap; i++){
+        var d = diffs[i];
         var label = pathLabel(d.path);
-        return '<div class="diff-row" data-idx="' + i + '">' +
+        html += '<div class="diff-row" data-idx="' + i + '">' +
           '<span class="tag tag-' + d.kind + '">' + KIND_LABEL[d.kind] + '</span>' +
           '<span class="path" title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</span>' +
           '<span class="preview">' + previewHtml(d) + '</span></div>';
-      }).join('');
-      diffListEl.querySelectorAll('.diff-row').forEach(function(row){
-        row.addEventListener('click', function(){ selectDiff(Number(row.dataset.idx)); });
-      });
+      }
+      if (diffs.length > LIST_CAP){
+        html += '<div class="diff-more">… 共 ' + diffs.length + ' 处差异，列表仅展示前 ' + LIST_CAP +
+          ' 处，其余可用 ↑↓ 方向键或上/下一个按钮导航。</div>';
+      }
+      diffListEl.innerHTML = html;
     }
     var counts = { added:0, removed:0, changed:0, type:0 };
     diffs.forEach(function(d){ counts[d.kind]++; });
@@ -630,7 +734,28 @@
   }
 
   // ---------- main compare flow ----------
+  // 大文本时分阶段 yield 让出主线程（页面不卡死）；token 用于丢弃过期的重复触发
+  var runToken = 0;
+  function nextTick(){ return new Promise(function(resolve){ setTimeout(resolve, 0); }); }
+
   function runCompare(){
+    var token = ++runToken;
+    btnCompare.disabled = true;
+    btnCompare.textContent = '对比中…';
+    doCompare(token).then(function(){
+      if (token === runToken){
+        btnCompare.disabled = false;
+        btnCompare.textContent = '对比 Diff';
+      }
+    }, function(err){
+      btnCompare.disabled = false;
+      btnCompare.textContent = '对比 Diff';
+      showError('对比过程出错：' + ((err && err.message) || err));
+    });
+  }
+
+  async function doCompare(token){
+    function stale(){ return token !== runToken; }
     hideError();
     var lt = inputLeft.value.trim();
     var rt = inputRight.value.trim();
@@ -647,9 +772,11 @@
     try { rightVal = JSON.parse(rt); }
     catch (e) { showError('对比 JSON 解析失败：' + describeJsonError(rt, e)); resultSection.hidden = true; return; }
 
+    await nextTick(); if (stale()) return;
     leftPosMap = buildPositionMap(inputLeft.value);
     rightPosMap = buildPositionMap(inputRight.value);
 
+    await nextTick(); if (stale()) return;
     var sortedLeft = sortDeep(leftVal);
     var sortedRight = sortDeep(rightVal);
 
@@ -665,12 +792,14 @@
     buildLines(sortedLeft, '', [], '', 0, diffMap, null, leftLines);
     buildLines(sortedRight, '', [], '', 0, diffMap, null, rightLines);
 
-    renderPanel(bodyLeftEl, leftLines);
-    renderPanel(bodyRightEl, rightLines);
+    await nextTick(); if (stale()) return;
+    currentIndex = -1;
+    currentDiffId = null;
+    resultSection.hidden = false;
+    setPanelLines(panelLeft, leftLines);
+    setPanelLines(panelRight, rightLines);
     renderSummary(diffs);
 
-    resultSection.hidden = false;
-    currentIndex = -1;
     if (diffs.length) selectDiff(0);
     else { refreshHighlight(inputLeft, highlightLeft); refreshHighlight(inputRight, highlightRight); }
   }
@@ -727,6 +856,16 @@
 
   btnPrev.addEventListener('click', function(){ selectDiff(currentIndex - 1); });
   btnNext.addEventListener('click', function(){ selectDiff(currentIndex + 1); });
+
+  diffListEl.addEventListener('click', function(e){
+    var row = e.target.closest('.diff-row');
+    if (row) selectDiff(Number(row.dataset.idx));
+  });
+
+  window.addEventListener('resize', function(){
+    panelLeft.from = -1; panelRight.from = -1;
+    renderWindow(panelLeft); renderWindow(panelRight);
+  });
 
   [bodyLeftEl, bodyRightEl].forEach(function(body){
     body.addEventListener('click', function(e){
