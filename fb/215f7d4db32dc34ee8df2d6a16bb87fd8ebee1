@@ -1,0 +1,24 @@
+json-diff-tool.html
+  s_4625e9f5910b9b::t_e92da16914cbf4 23-26,156,237-243
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.51-trip",
+  "base_commit_sha": "fb215f7d4db32dc34ee8df2d6a16bb87fd8ebee1",
+  "prompts": {},
+  "humans": {
+    "h_924845d3d83922": {
+      "author": "Wang Yan <wangyan@trip.com>"
+    }
+  },
+  "sessions": {
+    "s_4625e9f5910b9b": {
+      "agent_id": {
+        "tool": "chengxiaobang",
+        "id": "s_k1pmu4pclq8v",
+        "model": "glm-5.3"
+      },
+      "human_author": "Wang Yan <wangyan@trip.com>"
+    }
+  }
+}
