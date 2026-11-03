@@ -1,0 +1,27 @@
+json-diff-tool.html
+  s_4625e9f5910b9b::t_c51d1b62dd9a9c 108,116,118,189,212,216,252-255,269-275
+  s_4625e9f5910b9b::t_8eb79f83850fca 305-314,319-327,341-343,393-397,423-442,464,515
+  s_4625e9f5910b9b::t_4e1b747b573840 711-715,717,721-726,737-740,742-758,775,779,795-800,860-868
+  s_4625e9f5910b9b::t_512cb9aaad3c70 585-595,598,600-625,628-636,639-649,689-693
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.51-trip",
+  "base_commit_sha": "dafd8b3dd2783747d2fd9ca68e4aa9cdf600a4ef",
+  "prompts": {},
+  "humans": {
+    "h_924845d3d83922": {
+      "author": "Wang Yan <wangyan@trip.com>"
+    }
+  },
+  "sessions": {
+    "s_4625e9f5910b9b": {
+      "agent_id": {
+        "tool": "chengxiaobang",
+        "id": "s_k1pmu4pclq8v",
+        "model": "glm-5.3"
+      },
+      "human_author": "Wang Yan <wangyan@trip.com>"
+    }
+  }
+}
